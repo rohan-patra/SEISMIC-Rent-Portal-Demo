@@ -1,5 +1,11 @@
 # Seismic SERC-20
 
+Clone with
+
+```
+git clone --recurse-submodules https://github.com/rohan-patra/seismic-SERC-20
+```
+
 ## Overview
 
 ERC-20 Compliant token on the Seismic network which enables tokens with private balances, transfers, and recipients.

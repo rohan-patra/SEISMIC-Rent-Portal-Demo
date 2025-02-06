@@ -74,7 +74,11 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address) public view virtual returns (uint256) {
+    function balanceOf(address account) public view virtual returns (uint256) {
+        // if address is caller, return balance
+        if (account == _msgSender()) {
+            return uint256(_balances[saddress(account)]);
+        }
         return 0;
     }
 

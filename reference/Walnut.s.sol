@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Walnut} from "../src/Walnut.sol";
+import {Walnut} from "./Walnut.sol";
 
 contract WalnutScript is Script {
     Walnut public walnut;

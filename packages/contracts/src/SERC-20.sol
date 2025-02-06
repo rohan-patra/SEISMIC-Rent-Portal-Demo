@@ -11,6 +11,8 @@ import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
  * @dev Implementation of the {IERC20} interface with privacy protections using shielded types.
  * Public view functions that would leak privacy are implemented as no-ops while maintaining interface compatibility.
  * Total supply remains public while individual balances and transfers are private.
+ * Currently, this implementation is fully compliant with the ERC-20 standard, meaning that transfer recipients are NOT shielded/private.
+ * Recipient addresses appear in the Transfer event as unshielded addresses.
  */
 abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     mapping(saddress account => suint256) private _balances;

@@ -25,6 +25,7 @@ contract SERC20Test is Test {
     uint256 public initialSupply;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     function setUp() public {
         initialHolder = address(1);
@@ -198,6 +199,77 @@ contract SERC20Test is Test {
         
         vm.prank(initialHolder);
         token.transfer(recipient, 0);
+    }
+
+    // Infinite Approval Tests
+
+    function test_InfiniteApprovalRemainsUnchanged() public {
+        // Approve with max uint256
+        vm.prank(initialHolder);
+        token.approve(recipient, type(uint256).max);
+
+        // Do a transferFrom
+        vm.prank(recipient);
+        token.transferFrom(initialHolder, anotherAccount, 50 * 10**18);
+
+        // Check that allowance is still infinite
+        vm.prank(recipient);
+        assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
+    }
+
+    function test_InfiniteApprovalNoEventOnTransferFrom() public {
+        // Setup infinite approval
+        vm.prank(initialHolder);
+        token.approve(recipient, type(uint256).max);
+
+        // For TransferFrom with infinite approval:
+        // 1. Should emit Transfer event (with 0 value for privacy)
+        // 2. Should NOT emit Approval event
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(initialHolder, anotherAccount, 0);
+        
+        vm.prank(recipient);
+        token.transferFrom(initialHolder, anotherAccount, 50 * 10**18);
+    }
+
+    function test_InfiniteApprovalMultipleTransfers() public {
+        uint256 transferAmount = 20 * 10**18;
+        
+        // Setup infinite approval
+        vm.prank(initialHolder);
+        token.approve(recipient, type(uint256).max);
+
+        // Do multiple transfers
+        for(uint256 i = 0; i < 3; i++) {
+            vm.prank(recipient);
+            token.transferFrom(initialHolder, anotherAccount, transferAmount);
+
+            // Check allowance remains infinite
+            vm.prank(recipient);
+            assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
+        }
+
+        // Verify final balances
+        vm.prank(initialHolder);
+        assertEq(token.balanceOf(initialHolder), initialSupply - (transferAmount * 3));
+        
+        vm.prank(anotherAccount);
+        assertEq(token.balanceOf(anotherAccount), transferAmount * 3);
+    }
+
+    function test_InfiniteApprovalFailsWithInsufficientBalance() public {
+        // Setup infinite approval
+        vm.prank(initialHolder);
+        token.approve(recipient, type(uint256).max);
+
+        // Try to transfer more than balance
+        vm.prank(recipient);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
+        token.transferFrom(initialHolder, anotherAccount, initialSupply + 1);
+
+        // Allowance should still be infinite
+        vm.prank(recipient);
+        assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
     }
 
 }

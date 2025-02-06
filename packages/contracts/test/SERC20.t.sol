@@ -507,4 +507,194 @@ contract SERC20DecimalsTest is Test {
     }
 }
 
+contract SERC20AllowanceTest is Test {
+    TestSERC20 public token;
+    address public initialHolder;
+    address public spender;
+    address public otherAccount;
+    uint256 public initialSupply;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    function setUp() public {
+        initialHolder = address(1);
+        spender = address(2);
+        otherAccount = address(3);
+        initialSupply = 100 * 10**18;
+
+        token = new TestSERC20("My Token", "MTKN");
+        token.mint(initialHolder, initialSupply);
+    }
+
+    // Basic Functionality Tests
+
+    function test_IncreaseAllowance() public {
+        uint256 initialAllowance = 100;
+        uint256 addedValue = 50;
+
+        // Set initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, initialAllowance);
+
+        // Increase allowance and check event
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, spender, 0); // Zero value for privacy
+
+        vm.prank(initialHolder);
+        token.increaseAllowance(spender, addedValue);
+
+        // Check new allowance (visible to owner)
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), initialAllowance + addedValue);
+    }
+
+    function test_DecreaseAllowance() public {
+        uint256 initialAllowance = 100;
+        uint256 subtractedValue = 50;
+
+        // Set initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, initialAllowance);
+
+        // Decrease allowance and check event
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, spender, 0); // Zero value for privacy
+
+        vm.prank(initialHolder);
+        token.decreaseAllowance(spender, subtractedValue);
+
+        // Check new allowance (visible to owner)
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), initialAllowance - subtractedValue);
+    }
+
+    // Privacy Tests
+
+    function test_IncreaseAllowancePrivacy() public {
+        // Set and increase allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+        
+        vm.prank(initialHolder);
+        token.increaseAllowance(spender, 50);
+
+        // Owner can see allowance
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 150);
+
+        // Spender can see allowance
+        vm.prank(spender);
+        assertEq(token.allowance(initialHolder, spender), 150);
+
+        // Other accounts see zero
+        vm.prank(otherAccount);
+        assertEq(token.allowance(initialHolder, spender), 0);
+    }
+
+    function test_DecreaseAllowancePrivacy() public {
+        // Set and decrease allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+        
+        vm.prank(initialHolder);
+        token.decreaseAllowance(spender, 50);
+
+        // Owner can see allowance
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 50);
+
+        // Spender can see allowance
+        vm.prank(spender);
+        assertEq(token.allowance(initialHolder, spender), 50);
+
+        // Other accounts see zero
+        vm.prank(otherAccount);
+        assertEq(token.allowance(initialHolder, spender), 0);
+    }
+
+    // Edge Cases
+
+    function test_DecreaseAllowanceBelowZeroFails() public {
+        // Set initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Try to decrease by more than current allowance
+        vm.prank(initialHolder);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
+        token.decreaseAllowance(spender, 101);
+
+        // Allowance should remain unchanged
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 100);
+    }
+
+    function test_IncreaseAllowanceToMax() public {
+        // Start with some allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Increase to max
+        vm.prank(initialHolder);
+        token.increaseAllowance(spender, type(uint256).max - 100);
+
+        // Check max allowance
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), type(uint256).max);
+    }
+
+    function test_MultipleAllowanceUpdates() public {
+        // Multiple increases
+        vm.startPrank(initialHolder);
+        token.approve(spender, 100);
+        token.increaseAllowance(spender, 50);
+        token.increaseAllowance(spender, 75);
+        assertEq(token.allowance(initialHolder, spender), 225);
+
+        // Multiple decreases
+        token.decreaseAllowance(spender, 25);
+        token.decreaseAllowance(spender, 50);
+        assertEq(token.allowance(initialHolder, spender), 150);
+        vm.stopPrank();
+    }
+
+    function test_ZeroValueAllowanceUpdates() public {
+        vm.startPrank(initialHolder);
+        
+        // Increase by zero
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, spender, 0);
+        token.increaseAllowance(spender, 0);
+        assertEq(token.allowance(initialHolder, spender), 0);
+
+        // Set non-zero allowance
+        token.approve(spender, 100);
+
+        // Decrease by zero
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, spender, 0);
+        token.decreaseAllowance(spender, 0);
+        assertEq(token.allowance(initialHolder, spender), 100);
+        
+        vm.stopPrank();
+    }
+
+    function test_AllowanceUpdatesWithTransfers() public {
+        uint256 transferAmount = 50;
+        
+        // Setup allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Increase allowance and perform transfer
+        vm.prank(initialHolder);
+        token.increaseAllowance(spender, 50);
+
+        vm.prank(spender);
+        token.transferFrom(initialHolder, otherAccount, transferAmount);
+
+        // Check remaining allowance
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 100); // 150 - 50
+    }
 }

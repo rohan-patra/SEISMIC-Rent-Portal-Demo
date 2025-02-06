@@ -234,6 +234,8 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * Emits a {Transfer} event.
      */
     function _update(saddress from, saddress to, suint256 value) internal virtual {
+        _beforeTokenTransfer(from, to, value);
+
         if (from == saddress(address(0))) {
             // Convert from shielded to unshielded for total supply
             _totalSupply += uint256(value);
@@ -259,6 +261,8 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
         }
 
         emit Transfer(address(from), address(to), uint256(0)); // Zero value to protect privacy
+
+        _afterTokenTransfer(from, to, value);
     }
 
     /**
@@ -360,4 +364,40 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
             }
         }
     }
+
+    /**
+     * @dev Hook that is called before any transfer of tokens. This includes
+     * minting and burning.
+     *
+     * Calling conditions:
+     *
+     * - when `from` and `to` are both non-zero, `value` of ``from``'s tokens
+     * will be transferred to `to`.
+     * - when `from` is zero, `value` tokens will be minted for `to`.
+     * - when `to` is zero, `value` of ``from``'s tokens will be burned.
+     * - `from` and `to` are never both zero.
+     *
+     * Note: The `value` parameter is a shielded uint256 to maintain privacy.
+     *
+     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     */
+    function _beforeTokenTransfer(saddress from, saddress to, suint256 value) internal virtual {}
+
+    /**
+     * @dev Hook that is called after any transfer of tokens. This includes
+     * minting and burning.
+     *
+     * Calling conditions:
+     *
+     * - when `from` and `to` are both non-zero, `value` of ``from``'s tokens
+     * has been transferred to `to`.
+     * - when `from` is zero, `value` tokens have been minted for `to`.
+     * - when `to` is zero, `value` of ``from``'s tokens have been burned.
+     * - `from` and `to` are never both zero.
+     *
+     * Note: The `value` parameter is a shielded uint256 to maintain privacy.
+     *
+     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     */
+    function _afterTokenTransfer(saddress from, saddress to, suint256 value) internal virtual {}
 }

@@ -292,6 +292,95 @@ contract SERC20Test is Test {
         assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
     }
 
+    // Approve Edge Cases Tests
+
+    function test_ApproveEmitsEvent() public {
+        // Should emit Approval event with value 0 (for privacy)
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, recipient, 0);
+
+        vm.prank(initialHolder);
+        token.approve(recipient, 50 * 10**18);
+    }
+
+    function test_ApproveFromZeroAddress() public {
+        vm.prank(address(0));
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidApprover.selector, address(0)));
+        token.approve(recipient, 100);
+    }
+
+    function test_ApproveToZeroAddress() public {
+        vm.prank(initialHolder);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSpender.selector, address(0)));
+        token.approve(address(0), 100);
+    }
+
+    function test_ApproveReplacesExistingValue() public {
+        // First approval
+        vm.prank(initialHolder);
+        token.approve(recipient, 100);
+
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, recipient), 100);
+
+        // Replace with new value
+        vm.prank(initialHolder);
+        token.approve(recipient, 200);
+
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, recipient), 200);
+    }
+
+    function test_ApproveZeroValue() public {
+        // Initial non-zero approval
+        vm.prank(initialHolder);
+        token.approve(recipient, 100);
+
+        // Zero approval should emit event with zero value
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, recipient, 0);
+
+        vm.prank(initialHolder);
+        token.approve(recipient, 0);
+
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, recipient), 0);
+    }
+
+    function test_ApproveDoesNotRequireBalance() public {
+        uint256 largeAmount = initialSupply * 100;
+        
+        // Approve more than balance
+        vm.prank(initialHolder);
+        token.approve(recipient, largeAmount);
+
+        // Check allowance is set despite insufficient balance
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, recipient), largeAmount);
+
+        // But transferFrom should still fail
+        vm.prank(recipient);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
+        token.transferFrom(initialHolder, anotherAccount, largeAmount);
+    }
+
+    function test_ApproveTwiceEmitsEvents() public {
+        // First approval should emit event
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, recipient, 0);
+
+        vm.prank(initialHolder);
+        token.approve(recipient, 100);
+
+        // Second approval should also emit event
+        vm.expectEmit(true, true, false, true);
+        emit Approval(initialHolder, recipient, 0);
+
+        vm.prank(initialHolder);
+        token.approve(recipient, 200);
+    }
+
+}
 
 contract SERC20DecimalsTest is Test {
     TestSERC20Decimals public token6;

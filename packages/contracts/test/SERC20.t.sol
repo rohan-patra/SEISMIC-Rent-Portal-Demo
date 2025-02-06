@@ -34,13 +34,13 @@ contract SERC20Test is Test {
         token.mint(initialHolder, initialSupply);
     }
 
-    function test_Metadata() public {
+    function test_Metadata() public view {
         assertEq(token.name(), "My Token");
         assertEq(token.symbol(), "MTKN");
         assertEq(token.decimals(), 18);
     }
 
-    function test_TotalSupply() public {
+    function test_TotalSupply() public view {
         assertEq(token.totalSupply(), initialSupply);
     }
 

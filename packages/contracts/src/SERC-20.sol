@@ -12,7 +12,7 @@ import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
  * Public view functions that would leak privacy are implemented as no-ops while maintaining interface compatibility.
  * Total supply remains public while individual balances and transfers are private.
  */
-abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
+abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     mapping(saddress account => suint256) private _balances;
     mapping(saddress account => mapping(saddress spender => suint256)) private _allowances;
 

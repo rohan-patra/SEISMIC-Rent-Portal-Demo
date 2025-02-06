@@ -697,4 +697,187 @@ contract SERC20AllowanceTest is Test {
         vm.prank(initialHolder);
         assertEq(token.allowance(initialHolder, spender), 100); // 150 - 50
     }
+
+    // Additional Edge Cases for Increase/Decrease Allowance
+
+    function test_DecreaseAllowanceBelowZeroReverts() public {
+        // Try to decrease allowance when there was no approved amount before
+        vm.prank(initialHolder);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
+        token.decreaseAllowance(spender, 1);
+
+        // Set initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Try to decrease by more than current allowance
+        vm.prank(initialHolder);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
+        token.decreaseAllowance(spender, 101);
+
+        // Allowance should remain unchanged
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 100);
+    }
+
+    function test_IncreaseAllowanceOverflow() public {
+        // Set high initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, type(uint256).max - 1);
+
+        // Try to increase allowance which would cause overflow
+        vm.prank(initialHolder);
+        vm.expectRevert();  // Should revert on overflow
+        token.increaseAllowance(spender, 2);
+    }
+
+    function test_AllowanceUpdatesWithZeroTransfer() public {
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Zero value transfer should NOT decrease allowance
+        vm.prank(spender);
+        token.transferFrom(initialHolder, otherAccount, 0);
+
+        // Allowance should remain unchanged
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 100);
+    }
+
+    function test_IncreaseAllowanceWithZeroInitial() public {
+        // Increase allowance when there was no approved amount before
+        vm.prank(initialHolder);
+        token.increaseAllowance(spender, 100);
+
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 100);
+    }
+
+    function test_DecreaseAllowanceToZero() public {
+        // Set initial allowance
+        vm.prank(initialHolder);
+        token.approve(spender, 100);
+
+        // Decrease allowance to exactly zero
+        vm.prank(initialHolder);
+        token.decreaseAllowance(spender, 100);
+
+        vm.prank(initialHolder);
+        assertEq(token.allowance(initialHolder, spender), 0);
+    }
+
+    function test_ConsecutiveAllowanceUpdates() public {
+        vm.startPrank(initialHolder);
+        
+        // Multiple increases
+        token.increaseAllowance(spender, 50);
+        token.increaseAllowance(spender, 30);
+        assertEq(token.allowance(initialHolder, spender), 80);
+
+        // Multiple decreases
+        token.decreaseAllowance(spender, 20);
+        token.decreaseAllowance(spender, 10);
+        assertEq(token.allowance(initialHolder, spender), 50);
+
+        // Mix of increases and decreases
+        token.increaseAllowance(spender, 25);
+        token.decreaseAllowance(spender, 15);
+        assertEq(token.allowance(initialHolder, spender), 60);
+
+        vm.stopPrank();
+    }
+}
+
+contract SERC20MetadataTest is Test {
+    TestSERC20 public token;
+    string constant NAME = "Test Token";
+    string constant SYMBOL = "TST";
+    uint8 constant DECIMALS = 18;
+
+    function setUp() public {
+        token = new TestSERC20(NAME, SYMBOL);
+    }
+
+    function test_TokenName() public view {
+        assertEq(token.name(), NAME);
+    }
+
+    function test_TokenSymbol() public view {
+        assertEq(token.symbol(), SYMBOL);
+    }
+
+    function test_TokenDecimals() public view {
+        assertEq(token.decimals(), DECIMALS);
+    }
+}
+
+contract SERC20MintBurnTest is Test {
+    TestSERC20 public token;
+    address public initialHolder = address(1);
+    address public recipient = address(2);
+    uint256 public initialSupply = 100;
+
+    function setUp() public {
+        token = new TestSERC20("Test Token", "TST");
+        token.mint(initialHolder, initialSupply);
+    }
+
+    function test_MintToZeroAddressReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
+        token.mint(address(0), 100);
+    }
+
+    function test_BurnFromZeroAddressReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSender.selector, address(0)));
+        token.burn(address(0), 100);
+    }
+
+    function test_BurnExceedingBalanceReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
+        token.burn(initialHolder, initialSupply + 1);
+    }
+
+    function test_MintIncrementsTotalSupply() public {
+        uint256 amount = 50;
+        uint256 previousSupply = token.totalSupply();
+        
+        token.mint(recipient, amount);
+        assertEq(token.totalSupply(), previousSupply + amount);
+    }
+
+    function test_BurnDecrementsTotalSupply() public {
+        uint256 amount = 50;
+        uint256 previousSupply = token.totalSupply();
+        
+        token.burn(initialHolder, amount);
+        assertEq(token.totalSupply(), previousSupply - amount);
+    }
+
+    function test_MintToExistingBalance() public {
+        uint256 amount = 50;
+        
+        // Need to be the account owner to see the balance
+        vm.prank(initialHolder);
+        uint256 previousBalance = token.balanceOf(initialHolder);
+        
+        token.mint(initialHolder, amount);
+        
+        // Need to be the account owner to see the updated balance
+        vm.prank(initialHolder);
+        assertEq(token.balanceOf(initialHolder), previousBalance + amount);
+    }
+
+    function test_BurnEntireBalance() public {
+        token.burn(initialHolder, initialSupply);
+        assertEq(token.balanceOf(initialHolder), 0);
+    }
+
+    function test_MintMaxUintValue() public {
+        // Should not revert
+        token.mint(recipient, type(uint256).max - token.totalSupply());
+        
+        // Should revert on next mint due to overflow
+        vm.expectRevert();
+        token.mint(recipient, 1);
+    }
 }

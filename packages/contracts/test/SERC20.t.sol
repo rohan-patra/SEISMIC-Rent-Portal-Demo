@@ -24,6 +24,8 @@ contract SERC20Test is Test {
     address public anotherAccount;
     uint256 public initialSupply;
 
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
     function setUp() public {
         initialHolder = address(1);
         recipient = address(2);
@@ -140,4 +142,62 @@ contract SERC20Test is Test {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
         token.burn(initialHolder, initialSupply + 1);
     }
+
+    // Transfer Events Tests
+
+    function test_TransferEmitsEvent() public {
+        uint256 transferAmount = 50 * 10**18;
+        
+        // We expect a Transfer event with value 0 (for privacy)
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(initialHolder, recipient, 0);
+        
+        vm.prank(initialHolder);
+        token.transfer(recipient, transferAmount);
+    }
+
+    function test_MintEmitsTransferEvent() public {
+        uint256 mintAmount = 100 * 10**18;
+        
+        // Minting should emit a Transfer from zero address with value 0 (for privacy)
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(address(0), recipient, 0);
+        
+        token.mint(recipient, mintAmount);
+    }
+
+    function test_BurnEmitsTransferEvent() public {
+        uint256 burnAmount = 50 * 10**18;
+        
+        // Burning should emit a Transfer to zero address with value 0 (for privacy)
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(initialHolder, address(0), 0);
+        
+        token.burn(initialHolder, burnAmount);
+    }
+
+    function test_TransferFromEmitsTransferEvent() public {
+        uint256 transferAmount = 50 * 10**18;
+        
+        // Approve first
+        vm.prank(initialHolder);
+        token.approve(recipient, transferAmount);
+        
+        // TransferFrom should emit a Transfer event with value 0 (for privacy)
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(initialHolder, anotherAccount, 0);
+        
+        vm.prank(recipient);
+        token.transferFrom(initialHolder, anotherAccount, transferAmount);
+    }
+
+    function test_ZeroValueTransferEmitsEvent() public {
+        // Even zero-value transfers should emit an event
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(initialHolder, recipient, 0);
+        
+        vm.prank(initialHolder);
+        token.transfer(recipient, 0);
+    }
+
 }

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v5.2.0) (token/ERC20/ERC20.sol)
 
 pragma solidity ^0.8.20;
 
@@ -9,27 +8,13 @@ import {Context} from "../../../lib/openzeppelin-contracts/contracts/utils/Conte
 import {IERC20Errors} from "../../../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
 
 /**
- * @dev Implementation of the {IERC20} interface.
- *
- * This implementation is agnostic to the way tokens are created. This means
- * that a supply mechanism has to be added in a derived contract using {_mint}.
- *
- * TIP: For a detailed writeup see our guide
- * https://forum.openzeppelin.com/t/how-to-implement-erc20-supply-mechanisms/226[How
- * to implement supply mechanisms].
- *
- * The default value of {decimals} is 18. To change this, you should override
- * this function so it returns a different value.
- *
- * We have followed general OpenZeppelin Contracts guidelines: functions revert
- * instead returning `false` on failure. This behavior is nonetheless
- * conventional and does not conflict with the expectations of ERC-20
- * applications.
+ * @dev Implementation of the {IERC20} interface with privacy protections using shielded types.
+ * Public view functions that would leak privacy are implemented as no-ops while maintaining interface compatibility.
+ * Total supply remains public while individual balances and transfers are private.
  */
 abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
-    mapping(address account => uint256) private _balances;
-
-    mapping(address account => mapping(address spender => uint256)) private _allowances;
+    mapping(saddress account => suint256) private _balances;
+    mapping(saddress account => mapping(saddress spender => suint256)) private _allowances;
 
     uint256 private _totalSupply;
 
@@ -89,8 +74,8 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address account) public view virtual returns (uint256) {
-        return _balances[account];
+    function balanceOf(address) public view virtual returns (uint256) {
+        return 0;
     }
 
     /**
@@ -102,16 +87,16 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * - the caller must have a balance of at least `value`.
      */
     function transfer(address to, uint256 value) public virtual returns (bool) {
-        address owner = _msgSender();
-        _transfer(owner, to, value);
+        saddress owner = saddress(_msgSender());
+        _transfer(owner, saddress(to), suint256(value));
         return true;
     }
 
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view virtual returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address, address) public view virtual returns (uint256) {
+        return 0;
     }
 
     /**
@@ -125,8 +110,8 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * - `spender` cannot be the zero address.
      */
     function approve(address spender, uint256 value) public virtual returns (bool) {
-        address owner = _msgSender();
-        _approve(owner, spender, value);
+        saddress owner = saddress(_msgSender());
+        _approve(owner, saddress(spender), suint256(value));
         return true;
     }
 
@@ -147,9 +132,9 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * `value`.
      */
     function transferFrom(address from, address to, uint256 value) public virtual returns (bool) {
-        address spender = _msgSender();
-        _spendAllowance(from, spender, value);
-        _transfer(from, to, value);
+        saddress spender = saddress(_msgSender());
+        _spendAllowance(saddress(from), spender, suint256(value));
+        _transfer(saddress(from), saddress(to), suint256(value));
         return true;
     }
 
@@ -163,11 +148,11 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * NOTE: This function is not virtual, {_update} should be overridden instead.
      */
-    function _transfer(address from, address to, uint256 value) internal {
-        if (from == address(0)) {
+    function _transfer(saddress from, saddress to, suint256 value) internal {
+        if (from == saddress(address(0))) {
             revert ERC20InvalidSender(address(0));
         }
-        if (to == address(0)) {
+        if (to == saddress(address(0))) {
             revert ERC20InvalidReceiver(address(0));
         }
         _update(from, to, value);
@@ -180,34 +165,32 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Emits a {Transfer} event.
      */
-    function _update(address from, address to, uint256 value) internal virtual {
-        if (from == address(0)) {
-            // Overflow check required: The rest of the code assumes that totalSupply never overflows
-            _totalSupply += value;
+    function _update(saddress from, saddress to, suint256 value) internal virtual {
+        if (from == saddress(address(0))) {
+            // Convert from shielded to unshielded for total supply
+            _totalSupply += uint256(value);
         } else {
-            uint256 fromBalance = _balances[from];
+            suint256 fromBalance = _balances[from];
             if (fromBalance < value) {
-                revert ERC20InsufficientBalance(from, fromBalance, value);
+                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values to protect privacy
             }
             unchecked {
-                // Overflow not possible: value <= fromBalance <= totalSupply.
                 _balances[from] = fromBalance - value;
             }
         }
 
-        if (to == address(0)) {
+        if (to == saddress(address(0))) {
             unchecked {
-                // Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply.
-                _totalSupply -= value;
+                // Convert from shielded to unshielded for total supply
+                _totalSupply -= uint256(value);
             }
         } else {
             unchecked {
-                // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
                 _balances[to] += value;
             }
         }
 
-        emit Transfer(from, to, value);
+        emit Transfer(address(from), address(to), uint256(0)); // Zero value to protect privacy
     }
 
     /**
@@ -222,7 +205,7 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
         if (account == address(0)) {
             revert ERC20InvalidReceiver(address(0));
         }
-        _update(address(0), account, value);
+        _update(saddress(address(0)), saddress(account), suint256(value));
     }
 
     /**
@@ -237,7 +220,7 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
         if (account == address(0)) {
             revert ERC20InvalidSender(address(0));
         }
-        _update(account, address(0), value);
+        _update(saddress(account), saddress(address(0)), suint256(value));
     }
 
     /**
@@ -255,8 +238,8 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Overrides to this logic should be done to the variant with an additional `bool emitEvent` argument.
      */
-    function _approve(address owner, address spender, uint256 value) internal {
-        _approve(owner, spender, value, true);
+    function _approve(saddress owner, saddress spender, suint256 value) internal {
+        _approve(owner, spender, value, sbool(true));
     }
 
     /**
@@ -277,16 +260,16 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Requirements are the same as {_approve}.
      */
-    function _approve(address owner, address spender, uint256 value, bool emitEvent) internal virtual {
-        if (owner == address(0)) {
+    function _approve(saddress owner, saddress spender, suint256 value, sbool emitEvent) internal virtual {
+        if (owner == saddress(address(0))) {
             revert ERC20InvalidApprover(address(0));
         }
-        if (spender == address(0)) {
+        if (spender == saddress(address(0))) {
             revert ERC20InvalidSpender(address(0));
         }
         _allowances[owner][spender] = value;
         if (emitEvent) {
-            emit Approval(owner, spender, value);
+            emit Approval(address(owner), address(spender), uint256(0)); // Zero value to protect privacy
         }
     }
 
@@ -298,14 +281,14 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Does not emit an {Approval} event.
      */
-    function _spendAllowance(address owner, address spender, uint256 value) internal virtual {
-        uint256 currentAllowance = allowance(owner, spender);
-        if (currentAllowance < type(uint256).max) {
+    function _spendAllowance(saddress owner, saddress spender, suint256 value) internal virtual {
+        suint256 currentAllowance = _allowances[owner][spender];
+        if (currentAllowance < type(suint256).max) {
             if (currentAllowance < value) {
-                revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+                revert ERC20InsufficientAllowance(address(spender), uint256(0), uint256(0)); // Zero values to protect privacy
             }
             unchecked {
-                _approve(owner, spender, currentAllowance - value, false);
+                _approve(owner, spender, currentAllowance - value, sbool(false));
             }
         }
     }

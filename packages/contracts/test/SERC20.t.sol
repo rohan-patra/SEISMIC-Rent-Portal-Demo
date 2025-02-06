@@ -17,6 +17,26 @@ contract TestSERC20 is SERC20 {
     }
 }
 
+contract TestSERC20Decimals is SERC20 {
+    uint8 private immutable _decimals;
+
+    constructor(string memory name, string memory symbol, uint8 decimals_) SERC20(name, symbol) {
+        _decimals = decimals_;
+    }
+
+    function mint(address account, uint256 value) public {
+        _mint(account, value);
+    }
+
+    function burn(address account, uint256 value) public {
+        _burn(account, value);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
+    }
+}
+
 contract SERC20Test is Test {
     TestSERC20 public token;
     address public initialHolder;
@@ -271,5 +291,131 @@ contract SERC20Test is Test {
         vm.prank(recipient);
         assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
     }
+
+
+contract SERC20DecimalsTest is Test {
+    TestSERC20Decimals public token6;
+    TestSERC20Decimals public token0;
+    address public holder;
+    address public recipient;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    function setUp() public {
+        holder = address(1);
+        recipient = address(2);
+
+        // Create tokens with different decimal configurations
+        token6 = new TestSERC20Decimals("Six Decimals", "SIX", 6);
+        token0 = new TestSERC20Decimals("Zero Decimals", "ZERO", 0);
+    }
+
+    function test_CustomDecimals() public view {
+        assertEq(token6.decimals(), 6);
+        assertEq(token0.decimals(), 0);
+    }
+
+    function test_MintWithSixDecimals() public {
+        uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
+        token6.mint(holder, amount);
+
+        vm.prank(holder);
+        assertEq(token6.balanceOf(holder), amount);
+        assertEq(token6.totalSupply(), amount);
+    }
+
+    function test_MintWithZeroDecimals() public {
+        uint256 amount = 100; // 100 tokens with 0 decimals
+        token0.mint(holder, amount);
+
+        vm.prank(holder);
+        assertEq(token0.balanceOf(holder), amount);
+        assertEq(token0.totalSupply(), amount);
+    }
+
+    function test_TransferWithSixDecimals() public {
+        uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
+        token6.mint(holder, amount);
+
+        vm.prank(holder);
+        token6.transfer(recipient, 50 * 10**6);
+
+        vm.prank(holder);
+        assertEq(token6.balanceOf(holder), 50 * 10**6);
+        
+        vm.prank(recipient);
+        assertEq(token6.balanceOf(recipient), 50 * 10**6);
+    }
+
+    function test_TransferWithZeroDecimals() public {
+        uint256 amount = 100; // 100 tokens with 0 decimals
+        token0.mint(holder, amount);
+
+        vm.prank(holder);
+        token0.transfer(recipient, 50);
+
+        vm.prank(holder);
+        assertEq(token0.balanceOf(holder), 50);
+        
+        vm.prank(recipient);
+        assertEq(token0.balanceOf(recipient), 50);
+    }
+
+    function test_SmallestUnitTransferSixDecimals() public {
+        uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
+        token6.mint(holder, amount);
+
+        // Transfer 1 unit (0.000001 token)
+        vm.prank(holder);
+        token6.transfer(recipient, 1);
+
+        vm.prank(holder);
+        assertEq(token6.balanceOf(holder), amount - 1);
+        
+        vm.prank(recipient);
+        assertEq(token6.balanceOf(recipient), 1);
+    }
+
+    function test_SmallestUnitTransferZeroDecimals() public {
+        uint256 amount = 100; // 100 tokens with 0 decimals
+        token0.mint(holder, amount);
+
+        // Transfer 1 unit (1 whole token for 0 decimals)
+        vm.prank(holder);
+        token0.transfer(recipient, 1);
+
+        vm.prank(holder);
+        assertEq(token0.balanceOf(holder), amount - 1);
+        
+        vm.prank(recipient);
+        assertEq(token0.balanceOf(recipient), 1);
+    }
+
+    function test_MaxSupplyWithDifferentDecimals() public {
+        // Test max supply with 6 decimals
+        uint256 maxAmount6 = type(uint256).max;
+        token6.mint(holder, maxAmount6);
+        assertEq(token6.totalSupply(), maxAmount6);
+
+        // Test max supply with 0 decimals
+        uint256 maxAmount0 = type(uint256).max;
+        token0.mint(holder, maxAmount0);
+        assertEq(token0.totalSupply(), maxAmount0);
+    }
+
+    function test_BurnWithDifferentDecimals() public {
+        // Test burning with 6 decimals
+        uint256 amount6 = 100 * 10**6;
+        token6.mint(holder, amount6);
+        token6.burn(holder, 50 * 10**6);
+        assertEq(token6.totalSupply(), 50 * 10**6);
+
+        // Test burning with 0 decimals
+        uint256 amount0 = 100;
+        token0.mint(holder, amount0);
+        token0.burn(holder, 50);
+        assertEq(token0.totalSupply(), 50);
+    }
+}
 
 }

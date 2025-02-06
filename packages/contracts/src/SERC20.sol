@@ -262,7 +262,7 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
             }
         }
 
-        emit Transfer(address(from), address(to), uint256(0)); // Zero value to protect privacy
+        emit Transfer(address(from), address(0), uint256(0)); // Zero value to protect privacy
 
         _afterTokenTransfer(from, to, value);
     }
@@ -343,7 +343,7 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
         }
         _allowances[owner][spender] = value;
         if (emitEvent) {
-            emit Approval(address(owner), address(spender), uint256(0)); // Zero value to protect privacy
+            // emit Approval(address(owner), address(spender), uint256(0)); // Zero value to protect privacy
         }
     }
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {SERC20} from "../src/SERC-20.sol";
+import {SERC20} from "../src/SERC20.sol";
 import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
 
 contract TestSERC20 is SERC20 {

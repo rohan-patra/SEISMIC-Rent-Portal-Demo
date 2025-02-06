@@ -154,12 +154,12 @@ contract SERC20Test is Test {
         token.mint(address(0), 1);
     }
 
-    function test_BurnFromZeroAddress() public {
+    function test_BurnFromZeroAddressReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSender.selector, address(0)));
-        token.burn(address(0), 1);
+        token.burn(address(0), 100);
     }
 
-    function test_BurnExceedingBalance() public {
+    function test_BurnExceedingBalanceReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
         token.burn(initialHolder, initialSupply + 1);
     }

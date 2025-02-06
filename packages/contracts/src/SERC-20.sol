@@ -98,8 +98,14 @@ abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
 
     /**
      * @dev See {IERC20-allowance}.
+     * Returns actual allowance if caller is either the owner or the spender,
+     * returns 0 otherwise.
      */
-    function allowance(address, address) public view virtual returns (uint256) {
+    function allowance(address owner, address spender) public view virtual returns (uint256) {
+        address caller = _msgSender();
+        if (caller == owner || caller == spender) {
+            return uint256(_allowances[saddress(owner)][saddress(spender)]);
+        }
         return 0;
     }
 

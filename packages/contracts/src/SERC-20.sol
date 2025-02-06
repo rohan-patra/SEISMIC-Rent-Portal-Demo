@@ -149,6 +149,64 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     }
 
     /**
+     * @dev Atomically increases the allowance granted to `spender` by the caller.
+     *
+     * This is an alternative to {approve} that can be used as a mitigation for
+     * problems described in {IERC20-approve}.
+     *
+     * Emits an {Approval} event with value 0 to protect privacy. The actual allowance
+     * is only visible to the owner and spender through the {allowance} function.
+     *
+     * The operation is atomic - it directly accesses and modifies the underlying
+     * shielded allowance mapping to prevent race conditions.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     * - The sum of current allowance and `addedValue` must not overflow.
+     */
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        saddress owner = saddress(_msgSender());
+        saddress sspender = saddress(spender);
+        suint256 currentAllowance = _allowances[owner][sspender];
+        _approve(owner, sspender, currentAllowance + suint256(addedValue));
+        return true;
+    }
+
+    /**
+     * @dev Atomically decreases the allowance granted to `spender` by the caller.
+     *
+     * This is an alternative to {approve} that can be used as a mitigation for
+     * problems described in {IERC20-approve}.
+     *
+     * Emits an {Approval} event with value 0 to protect privacy. The actual allowance
+     * is only visible to the owner and spender through the {allowance} function.
+     *
+     * The operation is atomic - it directly accesses and modifies the underlying
+     * shielded allowance mapping to prevent race conditions.
+     *
+     * All error messages maintain privacy by using zero values in the error data.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     * - The current allowance must be greater than or equal to `subtractedValue`.
+     * - The difference between the current allowance and `subtractedValue` must not underflow.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        saddress owner = saddress(_msgSender());
+        saddress sspender = saddress(spender);
+        suint256 currentAllowance = _allowances[owner][sspender];
+        if (currentAllowance < suint256(subtractedValue)) {
+            revert ERC20InsufficientAllowance(address(spender), 0, 0);
+        }
+        unchecked {
+            _approve(owner, sspender, currentAllowance - suint256(subtractedValue));
+        }
+        return true;
+    }
+
+    /**
      * @dev Moves a `value` amount of tokens from `from` to `to`.
      *
      * This internal function is equivalent to {transfer}, and can be used to

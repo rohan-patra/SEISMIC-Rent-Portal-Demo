@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.20;
 
-import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IERC20Metadata} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
-import {Context} from "../../../lib/openzeppelin-contracts/contracts/utils/Context.sol";
-import {IERC20Errors} from "../../../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
+import {IERC20} from "../openzeppelin/interfaces/IERC20.sol";
+import {IERC20Metadata} from "../openzeppelin/interfaces/IERC20Metadata.sol";
+import {Context} from "../openzeppelin/utils/Context.sol";
+import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface with privacy protections using shielded types.

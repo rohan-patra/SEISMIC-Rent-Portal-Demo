@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.20;
 
@@ -8,7 +8,7 @@ import {Context} from "../openzeppelin/utils/Context.sol";
 import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
 
 /**
- * @dev Implementation of the {IERC20} interface with privacy protections using shielded types.
+ * @dev Implementation of the {SIERC20} interface with privacy protections using shielded types.
  * Public view functions that would leak privacy are implemented as no-ops while maintaining interface compatibility.
  * Total supply remains public while individual balances and transfers are private.
  * Currently, this implementation is fully compliant with the ERC-20 standard, meaning that transfer recipients are NOT shielded/private.
@@ -60,21 +60,21 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      *
      * NOTE: This information is only used for _display_ purposes: it in
      * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
+     * {SIERC20-balanceOf} and {SIERC20-transfer}.
      */
     function decimals() public view virtual override returns (uint8) {
         return 18;
     }
 
     /**
-     * @dev See {IERC20-totalSupply}.
+     * @dev See {SIERC20-totalSupply}.
      */
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
 
     /**
-     * @dev See {IERC20-balanceOf}.
+     * @dev See {SIERC20-balanceOf}.
      * Returns the balance of the caller if `account` matches the caller's address,
      * returns 0 otherwise to maintain privacy.
      */
@@ -103,7 +103,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
     }
 
     /**
-     * @dev See {IERC20-allowance}.
+     * @dev See {SIERC20-allowance}.
      * Returns actual allowance if caller is either the owner or the spender,
      * returns 0 otherwise to maintain privacy.
      */
@@ -161,7 +161,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * @dev Atomically increases the allowance granted to a shielded `spender` by a shielded `addedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {SIERC20-approve}.
      *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.
@@ -184,7 +184,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * @dev Atomically decreases the allowance granted to a shielded `spender` by a shielded `subtractedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {SIERC20-approve}.
      *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.

@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {SERC20} from "./SERC20.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {SRC20} from "./SRC20.sol";
+import {Context} from "../openzeppelin/utils/Context.sol";
 
 /**
  * @title USDY - Yield-bearing USD Stablecoin with Privacy Features
  * @notice A yield-bearing stablecoin that uses shielded types for privacy protection
- * @dev Implements SERC20 for shielded balances and transfers
+ * @dev Implements SRC20 for shielded balances and transfers
  */
-contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgradeable {
+contract USDY is SRC20, Context {
     // Base value for rewardMultiplier (18 decimals)
     uint256 private constant BASE = 1e18;
     
@@ -22,34 +20,99 @@ contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgr
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
-    bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+
+    // Role management
+    mapping(bytes32 => mapping(address => bool)) private _roles;
+    
+    // Pause state
+    bool private _paused;
 
     // Events
     event RewardMultiplierUpdated(uint256 newMultiplier);
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+    event Paused(address account);
+    event Unpaused(address account);
 
     // Custom errors
     error InvalidRewardMultiplier(uint256 multiplier);
     error ZeroRewardIncrement();
+    error MissingRole(bytes32 role, address account);
+    error TransferWhilePaused();
 
     /**
-     * @notice Initializes the USDY contract
-     * @param name_ The name of the token
-     * @param symbol_ The symbol of the token
+     * @notice Constructs the USDY contract
      * @param admin The address that will have admin rights
      */
-    function initialize(
-        string memory name_,
-        string memory symbol_,
-        address admin
-    ) external initializer {
-        __SERC20_init(name_, symbol_);
-        __AccessControl_init();
-        __Pausable_init();
-        __UUPSUpgradeable_init();
-
+    constructor(address admin) SRC20("USD Yield", "USDY", 18) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         rewardMultiplier = suint256(BASE); // Initialize with 1.0 multiplier
+    }
+
+    /**
+     * @notice Modifier that checks if the caller has a specific role
+     */
+    modifier onlyRole(bytes32 role) {
+        if (!hasRole(role, _msgSender())) {
+            revert MissingRole(role, _msgSender());
+        }
+        _;
+    }
+
+    /**
+     * @notice Modifier to make a function callable only when the contract is not paused
+     */
+    modifier whenNotPaused() {
+        if (_paused) revert TransferWhilePaused();
+        _;
+    }
+
+    /**
+     * @notice Returns true if `account` has been granted `role`
+     */
+    function hasRole(bytes32 role, address account) public view returns (bool) {
+        return _roles[role][account];
+    }
+
+    /**
+     * @notice Grants `role` to `account`
+     * @dev The caller must have the admin role
+     */
+    function grantRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _grantRole(role, account);
+    }
+
+    /**
+     * @notice Revokes `role` from `account`
+     * @dev The caller must have the admin role
+     */
+    function revokeRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(role, account);
+    }
+
+    /**
+     * @notice Internal function to grant a role to an account
+     */
+    function _grantRole(bytes32 role, address account) internal {
+        _roles[role][account] = true;
+        emit RoleGranted(role, account, _msgSender());
+    }
+
+    /**
+     * @notice Internal function to revoke a role from an account
+     */
+    function _revokeRole(bytes32 role, address account) internal {
+        _roles[role][account] = false;
+        emit RoleRevoked(role, account, _msgSender());
+    }
+
+    /**
+     * @notice Returns true if the contract is paused, and false otherwise
+     */
+    function paused() public view returns (bool) {
+        return _paused;
     }
 
     /**
@@ -57,7 +120,7 @@ contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgr
      * @param amount The amount of tokens to convert
      * @return The equivalent amount of shares
      */
-    function convertToShares(suint256 amount) public view returns (suint256) {
+    function convertToShares(suint256 amount) internal view returns (suint256) {
         return (amount * suint256(BASE)) / rewardMultiplier;
     }
 
@@ -66,7 +129,7 @@ contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgr
      * @param shares The amount of shares to convert
      * @return The equivalent amount of tokens
      */
-    function convertToTokens(suint256 shares) public view returns (suint256) {
+    function convertToTokens(suint256 shares) internal view returns (suint256) {
         return (shares * rewardMultiplier) / suint256(BASE);
     }
 
@@ -100,7 +163,7 @@ contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgr
      * @param amount The amount to mint
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
-        _mint(to, amount);
+        _mint(saddress(to), suint256(amount));
     }
 
     /**
@@ -109,61 +172,46 @@ contract USDY is SERC20, UUPSUpgradeable, PausableUpgradeable, AccessControlUpgr
      * @param amount The amount to burn
      */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
-        _burn(from, amount);
+        _burn(saddress(from), suint256(amount));
     }
 
     /**
      * @notice Pauses all token transfers
      */
     function pause() external onlyRole(PAUSE_ROLE) {
-        _pause();
+        _paused = true;
+        emit Paused(_msgSender());
     }
 
     /**
      * @notice Unpauses all token transfers
      */
     function unpause() external onlyRole(PAUSE_ROLE) {
-        _unpause();
+        _paused = false;
+        emit Unpaused(_msgSender());
     }
 
     /**
-     * @notice Hook that is called before any transfer of tokens
+     * @notice Hook that is called before any transfer
      * @dev Adds pausable functionality to transfers
      */
-    function _beforeTokenTransfer(
-        saddress from,
-        saddress to,
-        suint256 amount
-    ) internal virtual override whenNotPaused {
-        super._beforeTokenTransfer(from, to, amount);
+    function _beforeTransfer() internal view {
+        if (_paused) revert TransferWhilePaused();
     }
 
     /**
-     * @dev Function that should revert when `msg.sender` is not authorized to upgrade the contract
+     * @notice Override of the transfer function to add pause functionality
      */
-    function _authorizeUpgrade(address) internal override onlyRole(UPGRADE_ROLE) {}
+    function transfer(saddress to, suint256 amount) public virtual override returns (bool) {
+        _beforeTransfer();
+        return super.transfer(to, convertToShares(amount));
+    }
 
     /**
-     * @notice Hook that is called after any transfer of tokens
-     * @dev Converts shares to tokens based on current reward multiplier
+     * @notice Override of the transferFrom function to add pause functionality
      */
-    function _update(
-        saddress from,
-        saddress to,
-        suint256 value
-    ) internal virtual override {
-        if (from == saddress(address(0))) {
-            // Minting: Convert tokens to shares
-            suint256 shares = convertToShares(value);
-            super._update(from, to, shares);
-        } else if (to == saddress(address(0))) {
-            // Burning: Convert shares to tokens
-            suint256 shares = convertToShares(value);
-            super._update(from, to, shares);
-        } else {
-            // Transfer: Convert tokens to shares for transfer
-            suint256 shares = convertToShares(value);
-            super._update(from, to, shares);
-        }
+    function transferFrom(saddress from, saddress to, suint256 amount) public virtual override returns (bool) {
+        _beforeTransfer();
+        return super.transferFrom(from, to, convertToShares(amount));
     }
 }

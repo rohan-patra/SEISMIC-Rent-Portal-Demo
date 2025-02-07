@@ -6,7 +6,7 @@ import {SERC20} from "./SERC20.sol";
 /**
  * @title USDY - Yield-bearing USD Stablecoin with Privacy Features
  * @notice A yield-bearing stablecoin that uses shielded types for privacy protection
- * @dev Implements SERC20 for shielded balances and transfers
+ * @dev Implements SERC20 for shielded balances and transfers. This is a final implementation, not meant to be inherited from.
  */
 contract USDY is SERC20 {
     // Base value for rewardMultiplier (18 decimals)
@@ -53,7 +53,7 @@ contract USDY is SERC20 {
     /**
      * @notice Returns the number of decimals used to get its user representation.
      */
-    function decimals() public pure virtual override returns (uint8) {
+    function decimals() public pure override returns (uint8) {
         return 18;
     }
 

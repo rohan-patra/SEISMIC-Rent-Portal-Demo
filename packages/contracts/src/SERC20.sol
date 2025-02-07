@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-import {IERC20} from "../openzeppelin/interfaces/IERC20.sol";
+import {SIERC20} from "./SIERC20.sol";
 import {IERC20Metadata} from "../openzeppelin/interfaces/IERC20Metadata.sol";
 import {Context} from "../openzeppelin/utils/Context.sol";
 import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
@@ -14,7 +14,7 @@ import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
  * Currently, this implementation is fully compliant with the ERC-20 standard, meaning that transfer recipients are NOT shielded/private.
  * Recipient addresses appear in the Transfer event as unshielded addresses.
  */
-abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
+abstract contract SERC20 is Context, SIERC20, IERC20Metadata, IERC20Errors {
     mapping(saddress account => suint256) private _balances;
     mapping(saddress account => mapping(saddress spender => suint256)) private _allowances;
 
@@ -62,14 +62,14 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * no way affects any of the arithmetic of the contract, including
      * {IERC20-balanceOf} and {IERC20-transfer}.
      */
-    function decimals() public view virtual returns (uint8) {
+    function decimals() public view virtual override returns (uint8) {
         return 18;
     }
 
     /**
      * @dev See {IERC20-totalSupply}.
      */
-    function totalSupply() public view virtual returns (uint256) {
+    function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
 
@@ -96,7 +96,7 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Note: Both `to` and `value` are shielded to maintain privacy.
      */
-    function transfer(saddress to, suint256 value) public virtual returns (bool) {
+    function transfer(saddress to, suint256 value) public virtual override returns (bool) {
         saddress owner = saddress(_msgSender());
         _transfer(owner, to, value);
         return true;
@@ -107,8 +107,8 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * Returns actual allowance if caller is either the owner or the spender,
      * returns 0 otherwise to maintain privacy.
      */
-    function allowance(address owner, address spender) public view virtual returns (uint256) {
-        address caller = _msgSender();
+    function allowance(saddress owner, saddress spender) public view returns (uint256) {
+        saddress caller = saddress(_msgSender());
         if (caller == owner || caller == spender) {
             return uint256(_allowances[saddress(owner)][saddress(spender)]);
         }
@@ -127,7 +127,7 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * Note: Both `spender` and `value` are shielded to maintain privacy.
      */
-    function approve(saddress spender, suint256 value) public virtual returns (bool) {
+    function approve(saddress spender, suint256 value) public virtual override returns (bool) {
         saddress owner = saddress(_msgSender());
         _approve(owner, spender, value);
         return true;

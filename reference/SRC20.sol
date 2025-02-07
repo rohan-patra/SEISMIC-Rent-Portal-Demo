@@ -1,24 +1,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.13;
 
-import { ISRC20 } from "./ISRC20.sol";
+/*//////////////////////////////////////////////////////////////
+//                        ISRC20 Interface
+//////////////////////////////////////////////////////////////*/
+
+interface ISRC20 {
+    /*//////////////////////////////////////////////////////////////
+                            METADATA FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+
+    /*//////////////////////////////////////////////////////////////
+                              ERC20 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function balanceOf() external view returns (uint256);
+    function approve(saddress spender, suint256 amount) external returns (bool);
+    function transfer(saddress to, suint256 amount) external returns (bool);
+    function transferFrom(saddress from, saddress to, suint256 amount) external returns (bool);
+}
 
 /*//////////////////////////////////////////////////////////////
 //                         SRC20 Contract
 //////////////////////////////////////////////////////////////*/
 
 abstract contract SRC20 is ISRC20 {
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    // Leaks information to public, will replace with encrypted events
-    // event Transfer(address indexed from, address indexed to, uint256 amount);
-    // event Approval(
-    //     address indexed owner,
-    //     address indexed spender,
-    //     uint256 amount
-    // );
-
     /*//////////////////////////////////////////////////////////////
                             METADATA STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -31,9 +39,9 @@ abstract contract SRC20 is ISRC20 {
     //////////////////////////////////////////////////////////////*/
     // All storage variables that will be mutated must be confidential to
     // preserve functional privacy.
-    uint256 public totalSupply;
+    suint256 internal totalSupply;
     mapping(saddress => suint256) internal balance;
-    mapping(saddress => mapping(saddress => suint256)) internal _allowance;
+    mapping(saddress => mapping(saddress => suint256)) internal allowance;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -51,42 +59,30 @@ abstract contract SRC20 is ISRC20 {
         return uint256(balance[saddress(msg.sender)]);
     }
 
-    function approve(
-        saddress spender,
-        suint256 amount
-    ) public virtual returns (bool) {
-        _allowance[saddress(msg.sender)][spender] = amount;
-        // emit Approval(msg.sender, address(spender), uint256(amount));
+    function approve(saddress spender, suint256 amount) public virtual returns (bool) {
+        allowance[saddress(msg.sender)][spender] = amount;
         return true;
     }
 
-    function transfer(
-        saddress to,
-        suint256 amount
-    ) public virtual returns (bool) {
+    function transfer(saddress to, suint256 amount) public virtual returns (bool) {
         // msg.sender is public information, casting to saddress below doesn't change this
         balance[saddress(msg.sender)] -= amount;
         unchecked {
             balance[to] += amount;
         }
-        // emit Transfer(msg.sender, address(to), uint256(amount));
         return true;
     }
 
-    function transferFrom(
-        saddress from,
-        saddress to,
-        suint256 amount
-    ) public virtual returns (bool) {
-        suint256 allowed = _allowance[from][saddress(msg.sender)]; // Saves gas for limited approvals.
-        if (allowed != suint256(type(uint256).max))
-            _allowance[from][saddress(msg.sender)] = allowed - amount;
+    function transferFrom(saddress from, saddress to, suint256 amount) public virtual returns (bool) {
+        suint256 allowed = allowance[from][saddress(msg.sender)]; // Saves gas for limited approvals.
+        if (allowed  != suint256(type(uint256).max)) {
+            allowance[from][saddress(msg.sender)] = allowed - amount;
+        }
 
         balance[from] -= amount;
         unchecked {
             balance[to] += amount;
         }
-        // emit Transfer(msg.sender, address(to), uint256(amount));
         return true;
     }
 
@@ -94,14 +90,14 @@ abstract contract SRC20 is ISRC20 {
                         INTERNAL MINT/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
     function _mint(saddress to, suint256 amount) internal virtual {
-        totalSupply += uint256(amount);
+        totalSupply += amount;
         unchecked {
             balance[to] += amount;
         }
-        // emit Transfer(address(0), address(to), uint256(amount));
     }
 
-    function allowance(saddress spender) external view returns (uint256) {
-        return uint256(_allowance[saddress(msg.sender)][spender]);
+    function _burn(saddress to, suint256 amount) internal virtual {
+        totalSupply -= amount;
+        balance[to] -= amount;
     }
 }

@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 import {SIERC20} from "./SIERC20.sol";
-import {IERC20Metadata} from "../openzeppelin/interfaces/IERC20Metadata.sol";
+import {SIERC20Metadata} from "./SIERC20Metadata.sol";
 import {Context} from "../openzeppelin/utils/Context.sol";
 import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
 
@@ -14,7 +14,7 @@ import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
  * Currently, this implementation is fully compliant with the ERC-20 standard, meaning that transfer recipients are NOT shielded/private.
  * Recipient addresses appear in the Transfer event as unshielded addresses.
  */
-abstract contract SERC20 is Context, SIERC20, IERC20Metadata, IERC20Errors {
+abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
     mapping(saddress account => suint256) private _balances;
     mapping(saddress account => mapping(saddress spender => suint256)) private _allowances;
 

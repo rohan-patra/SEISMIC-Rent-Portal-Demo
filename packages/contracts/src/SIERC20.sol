@@ -30,7 +30,7 @@ interface SIERC20 {
      * For privacy reasons, returns actual balance only if caller is the account owner,
      * otherwise returns 0.
      */
-    function balanceOf() external view returns (uint256);
+    function balanceOf(saddress account) external view returns (uint256);
 
     /**
      * @dev Moves a shielded `value` amount of tokens from the caller's account to `to`.

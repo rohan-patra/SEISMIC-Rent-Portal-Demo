@@ -51,6 +51,13 @@ contract USDY is SERC20 {
     }
 
     /**
+     * @notice Returns the number of decimals used to get its user representation.
+     */
+    function decimals() public pure virtual override returns (uint8) {
+        return 18;
+    }
+
+    /**
      * @notice Modifier that checks if the caller has a specific role
      */
     modifier onlyRole(bytes32 role) {
@@ -162,7 +169,7 @@ contract USDY is SERC20 {
      * @param amount The amount to mint
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
-        _mint(saddress(to), suint256(amount));
+        _mint(to, amount);
     }
 
     /**
@@ -171,7 +178,7 @@ contract USDY is SERC20 {
      * @param amount The amount to burn
      */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
-        _burn(saddress(from), suint256(amount));
+        _burn(from, amount);
     }
 
     /**
@@ -191,26 +198,48 @@ contract USDY is SERC20 {
     }
 
     /**
+     * @notice Updates token balances, handling yield conversion
+     * @dev Overrides SERC20's _update to handle yield conversion
+     */
+    function _update(saddress from, saddress to, suint256 value) internal override {
+        if (from == saddress(address(0))) {
+            // Minting - convert to shares
+            super._update(from, to, convertToShares(value));
+        } else if (to == saddress(address(0))) {
+            // Burning - convert to shares
+            super._update(from, to, convertToShares(value));
+        } else {
+            // Transfer - convert to shares
+            super._update(from, to, convertToShares(value));
+        }
+    }
+
+    /**
      * @notice Hook that is called before any transfer
      * @dev Adds pausable functionality to transfers
      */
-    function _beforeTransfer() internal view {
+    function _beforeTokenTransfer(saddress from, saddress to, suint256 value) internal override {
         if (_paused) revert TransferWhilePaused();
+    }
+
+    /**
+     * @notice Hook that is called after any transfer
+     */
+    function _afterTokenTransfer(saddress from, saddress to, suint256 value) internal override {
+        // No additional functionality needed after transfer
     }
 
     /**
      * @notice Override of the transfer function to add pause functionality
      */
-    function transfer(saddress to, suint256 amount) public virtual override returns (bool) {
-        _beforeTransfer();
+    function transfer(saddress to, suint256 amount) public override returns (bool) {
         return super.transfer(to, convertToShares(amount));
     }
 
     /**
      * @notice Override of the transferFrom function to add pause functionality
      */
-    function transferFrom(saddress from, saddress to, suint256 amount) public virtual override returns (bool) {
-        _beforeTransfer();
+    function transferFrom(saddress from, saddress to, suint256 amount) public override returns (bool) {
         return super.transferFrom(from, to, convertToShares(amount));
     }
 }

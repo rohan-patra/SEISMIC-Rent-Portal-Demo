@@ -75,6 +75,8 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
 
     /**
      * @dev See {IERC20-balanceOf}.
+     * Returns the balance of the caller if `account` matches the caller's address,
+     * returns 0 otherwise to maintain privacy.
      */
     function balanceOf(address account) public view virtual returns (uint256) {
         // if address is caller, return balance
@@ -85,23 +87,25 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     }
 
     /**
-     * @dev See {IERC20-transfer}.
+     * @dev Transfers a shielded `value` amount of tokens to a shielded `to` address.
      *
      * Requirements:
      *
      * - `to` cannot be the zero address.
      * - the caller must have a balance of at least `value`.
+     *
+     * Note: Both `to` and `value` are shielded to maintain privacy.
      */
-    function transfer(address to, uint256 value) public virtual returns (bool) {
+    function transfer(saddress to, suint256 value) public virtual returns (bool) {
         saddress owner = saddress(_msgSender());
-        _transfer(owner, saddress(to), suint256(value));
+        _transfer(owner, to, value);
         return true;
     }
 
     /**
      * @dev See {IERC20-allowance}.
      * Returns actual allowance if caller is either the owner or the spender,
-     * returns 0 otherwise.
+     * returns 0 otherwise to maintain privacy.
      */
     function allowance(address owner, address spender) public view virtual returns (uint256) {
         address caller = _msgSender();
@@ -112,29 +116,30 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     }
 
     /**
-     * @dev See {IERC20-approve}.
+     * @dev Approves a shielded `spender` to spend a shielded `value` amount of tokens on behalf of the caller.
      *
-     * NOTE: If `value` is the maximum `uint256`, the allowance is not updated on
+     * NOTE: If `value` is the maximum `suint256`, the allowance is not updated on
      * `transferFrom`. This is semantically equivalent to an infinite approval.
      *
      * Requirements:
      *
      * - `spender` cannot be the zero address.
+     *
+     * Note: Both `spender` and `value` are shielded to maintain privacy.
      */
-    function approve(address spender, uint256 value) public virtual returns (bool) {
+    function approve(saddress spender, suint256 value) public virtual returns (bool) {
         saddress owner = saddress(_msgSender());
-        _approve(owner, saddress(spender), suint256(value));
+        _approve(owner, spender, value);
         return true;
     }
 
     /**
-     * @dev See {IERC20-transferFrom}.
+     * @dev Transfers a shielded `value` amount of tokens from a shielded `from` address to a shielded `to` address.
      *
-     * Skips emitting an {Approval} event indicating an allowance update. This is not
-     * required by the ERC. See {xref-ERC20-_approve-address-address-uint256-bool-}[_approve].
+     * Skips emitting an {Approval} event indicating an allowance update to maintain privacy.
      *
      * NOTE: Does not update the allowance if the current allowance
-     * is the maximum `uint256`.
+     * is the maximum `suint256`.
      *
      * Requirements:
      *
@@ -142,22 +147,21 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      * - `from` must have a balance of at least `value`.
      * - the caller must have allowance for ``from``'s tokens of at least
      * `value`.
+     *
+     * Note: All parameters are shielded to maintain privacy.
      */
-    function transferFrom(address from, address to, uint256 value) public virtual returns (bool) {
+    function transferFrom(saddress from, saddress to, suint256 value) public virtual returns (bool) {
         saddress spender = saddress(_msgSender());
-        _spendAllowance(saddress(from), spender, suint256(value));
-        _transfer(saddress(from), saddress(to), suint256(value));
+        _spendAllowance(from, spender, value);
+        _transfer(from, to, value);
         return true;
     }
 
     /**
-     * @dev Atomically increases the allowance granted to `spender` by the caller.
+     * @dev Atomically increases the allowance granted to a shielded `spender` by a shielded `addedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
-     *
-     * Emits an {Approval} event with value 0 to protect privacy. The actual allowance
-     * is only visible to the owner and spender through the {allowance} function.
      *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.
@@ -166,55 +170,52 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
      *
      * - `spender` cannot be the zero address.
      * - The sum of current allowance and `addedValue` must not overflow.
+     *
+     * Note: Both `spender` and `addedValue` are shielded to maintain privacy.
      */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(saddress spender, suint256 addedValue) public virtual returns (bool) {
         saddress owner = saddress(_msgSender());
-        saddress sspender = saddress(spender);
-        suint256 currentAllowance = _allowances[owner][sspender];
-        _approve(owner, sspender, currentAllowance + suint256(addedValue));
+        suint256 currentAllowance = _allowances[owner][spender];
+        _approve(owner, spender, currentAllowance + addedValue);
         return true;
     }
 
     /**
-     * @dev Atomically decreases the allowance granted to `spender` by the caller.
+     * @dev Atomically decreases the allowance granted to a shielded `spender` by a shielded `subtractedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
      * problems described in {IERC20-approve}.
      *
-     * Emits an {Approval} event with value 0 to protect privacy. The actual allowance
-     * is only visible to the owner and spender through the {allowance} function.
-     *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.
-     *
-     * All error messages maintain privacy by using zero values in the error data.
      *
      * Requirements:
      *
      * - `spender` cannot be the zero address.
      * - The current allowance must be greater than or equal to `subtractedValue`.
      * - The difference between the current allowance and `subtractedValue` must not underflow.
+     *
+     * Note: Both `spender` and `subtractedValue` are shielded to maintain privacy.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    function decreaseAllowance(saddress spender, suint256 subtractedValue) public virtual returns (bool) {
         saddress owner = saddress(_msgSender());
-        saddress sspender = saddress(spender);
-        suint256 currentAllowance = _allowances[owner][sspender];
-        if (currentAllowance < suint256(subtractedValue)) {
+        suint256 currentAllowance = _allowances[owner][spender];
+        if (currentAllowance < subtractedValue) {
             revert ERC20InsufficientAllowance(address(spender), 0, 0);
         }
         unchecked {
-            _approve(owner, sspender, currentAllowance - suint256(subtractedValue));
+            _approve(owner, spender, currentAllowance - subtractedValue);
         }
         return true;
     }
 
     /**
-     * @dev Moves a `value` amount of tokens from `from` to `to`.
+     * @dev Moves a shielded `value` amount of tokens from a shielded `from` to a shielded `to` address.
      *
      * This internal function is equivalent to {transfer}, and can be used to
      * e.g. implement automatic token fees, slashing mechanisms, etc.
      *
-     * Emits a {Transfer} event.
+     * Emits a {Transfer} event with zero values to maintain privacy.
      *
      * NOTE: This function is not virtual, {_update} should be overridden instead.
      */
@@ -268,10 +269,10 @@ abstract contract SERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     }
 
     /**
-     * @dev Creates a `value` amount of tokens and assigns them to `account`, by transferring it from address(0).
-     * Relies on the `_update` mechanism
+     * @dev Creates a shielded `value` amount of tokens and assigns them to a shielded `account`.
+     * Relies on the `_update` mechanism.
      *
-     * Emits a {Transfer} event with `from` set to the zero address.
+     * Emits a {Transfer} event with zero values to maintain privacy.
      *
      * NOTE: This function is not virtual, {_update} should be overridden instead.
      */

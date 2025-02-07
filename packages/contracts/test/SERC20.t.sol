@@ -70,24 +70,24 @@ contract SERC20Test is Test {
     function test_BalanceOf() public {
         // When checking own balance
         vm.prank(initialHolder);
-        assertEq(token.balanceOf(initialHolder), initialSupply);
+        assertEq(token.balanceOf(saddress(initialHolder)), initialSupply);
 
         // When checking other's balance (should return 0 for privacy)
-        assertEq(token.balanceOf(initialHolder), 0);
+        assertEq(token.balanceOf(saddress(initialHolder)), 0);
     }
 
     function test_Transfer() public {
         uint256 transferAmount = 50 * 10**18;
         
         vm.prank(initialHolder);
-        token.transfer(recipient, transferAmount);
+        token.transfer(saddress(recipient), suint256(transferAmount));
 
         // Check balances
         vm.prank(initialHolder);
-        assertEq(token.balanceOf(initialHolder), initialSupply - transferAmount);
+        assertEq(token.balanceOf(saddress(initialHolder)), initialSupply - transferAmount);
         
         vm.prank(recipient);
-        assertEq(token.balanceOf(recipient), transferAmount);
+        assertEq(token.balanceOf(saddress(recipient)), transferAmount);
     }
 
     function test_TransferFailsForInsufficientBalance() public {
@@ -95,29 +95,29 @@ contract SERC20Test is Test {
         
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
-        token.transfer(recipient, transferAmount);
+        token.transfer(saddress(recipient), suint256(transferAmount));
     }
 
     function test_TransferFailsForZeroAddress() public {
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
-        token.transfer(address(0), 1);
+        token.transfer(saddress(address(0)), suint256(1));
     }
 
     function test_Approve() public {
         vm.prank(initialHolder);
-        token.approve(recipient, initialSupply);
+        token.approve(saddress(recipient), suint256(initialSupply));
 
         // Check allowance (visible only to owner or spender)
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, recipient), initialSupply);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), initialSupply);
         
         vm.prank(recipient);
-        assertEq(token.allowance(initialHolder, recipient), initialSupply);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), initialSupply);
 
         // Check allowance (should be 0 for others)
         vm.prank(anotherAccount);
-        assertEq(token.allowance(initialHolder, recipient), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 0);
     }
 
     function test_TransferFrom() public {
@@ -125,28 +125,28 @@ contract SERC20Test is Test {
         
         // Approve first
         vm.prank(initialHolder);
-        token.approve(recipient, transferAmount);
+        token.approve(saddress(recipient), suint256(transferAmount));
 
         // Transfer using transferFrom
         vm.prank(recipient);
-        token.transferFrom(initialHolder, anotherAccount, transferAmount);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(transferAmount));
 
         // Check balances
         vm.prank(initialHolder);
-        assertEq(token.balanceOf(initialHolder), initialSupply - transferAmount);
+        assertEq(token.balanceOf(saddress(initialHolder)), initialSupply - transferAmount);
         
         vm.prank(anotherAccount);
-        assertEq(token.balanceOf(anotherAccount), transferAmount);
+        assertEq(token.balanceOf(saddress(anotherAccount)), transferAmount);
 
         // Check allowance is reduced
         vm.prank(recipient);
-        assertEq(token.allowance(initialHolder, recipient), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 0);
     }
 
     function test_TransferFromFailsWithoutAllowance() public {
         vm.prank(recipient);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, recipient, 0, 0));
-        token.transferFrom(initialHolder, anotherAccount, 1);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(1));
     }
 
     function test_MintToZeroAddress() public {
@@ -174,7 +174,7 @@ contract SERC20Test is Test {
         emit Transfer(initialHolder, address(0), 0);
         
         vm.prank(initialHolder);
-        token.transfer(recipient, transferAmount);
+        token.transfer(saddress(recipient), suint256(transferAmount));
     }
 
     function test_MintEmitsTransferEvent() public {
@@ -202,14 +202,14 @@ contract SERC20Test is Test {
         
         // Approve first
         vm.prank(initialHolder);
-        token.approve(recipient, transferAmount);
+        token.approve(saddress(recipient), suint256(transferAmount) );
         
         // TransferFrom should emit a Transfer event with address(0) as recipient and 0 value (for privacy)
         vm.expectEmit(true, true, false, true);
         emit Transfer(initialHolder, address(0), 0);
         
         vm.prank(recipient);
-        token.transferFrom(initialHolder, anotherAccount, transferAmount);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(transferAmount));
     }
 
     function test_ZeroValueTransferEmitsEvent() public {
@@ -218,7 +218,7 @@ contract SERC20Test is Test {
         emit Transfer(initialHolder, address(0), 0);
         
         vm.prank(initialHolder);
-        token.transfer(recipient, 0);
+        token.transfer(saddress(recipient), suint256(0));
     }
 
     // Infinite Approval Tests
@@ -226,21 +226,21 @@ contract SERC20Test is Test {
     function test_InfiniteApprovalRemainsUnchanged() public {
         // Approve with max uint256
         vm.prank(initialHolder);
-        token.approve(recipient, type(uint256).max);
+        token.approve(saddress(recipient), suint256(type(uint256).max));
 
         // Do a transferFrom
         vm.prank(recipient);
-        token.transferFrom(initialHolder, anotherAccount, 50 * 10**18);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(50 * 10**18));
 
         // Check that allowance is still infinite
         vm.prank(recipient);
-        assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), type(uint256).max);
     }
 
     function test_InfiniteApprovalNoEventOnTransferFrom() public {
         // Setup infinite approval
         vm.prank(initialHolder);
-        token.approve(recipient, type(uint256).max);
+        token.approve(saddress(recipient), suint256(type(uint256).max));
 
         // For TransferFrom with infinite approval:
         // 1. Should emit Transfer event (with address(0) as recipient and 0 value for privacy)
@@ -249,7 +249,7 @@ contract SERC20Test is Test {
         emit Transfer(initialHolder, address(0), 0);
         
         vm.prank(recipient);
-        token.transferFrom(initialHolder, anotherAccount, 50 * 10**18);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(50 * 10**18));
     }
 
     function test_InfiniteApprovalMultipleTransfers() public {
@@ -257,39 +257,39 @@ contract SERC20Test is Test {
         
         // Setup infinite approval
         vm.prank(initialHolder);
-        token.approve(recipient, type(uint256).max);
+        token.approve(saddress(recipient), suint256(type(uint256).max));
 
         // Do multiple transfers
         for(uint256 i = 0; i < 3; i++) {
             vm.prank(recipient);
-            token.transferFrom(initialHolder, anotherAccount, transferAmount);
+            token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(transferAmount));
 
             // Check allowance remains infinite
             vm.prank(recipient);
-            assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
+            assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), type(uint256).max);
         }
 
         // Verify final balances
         vm.prank(initialHolder);
-        assertEq(token.balanceOf(initialHolder), initialSupply - (transferAmount * 3));
+        assertEq(token.balanceOf(saddress(initialHolder)), initialSupply - (transferAmount * 3));
         
         vm.prank(anotherAccount);
-        assertEq(token.balanceOf(anotherAccount), transferAmount * 3);
+        assertEq(token.balanceOf(saddress(anotherAccount)), transferAmount * 3);
     }
 
     function test_InfiniteApprovalFailsWithInsufficientBalance() public {
         // Setup infinite approval
         vm.prank(initialHolder);
-        token.approve(recipient, type(uint256).max);
+        token.approve(saddress(recipient), suint256(type(uint256).max));
 
         // Try to transfer more than balance
         vm.prank(recipient);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
-        token.transferFrom(initialHolder, anotherAccount, initialSupply + 1);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(initialSupply + 1));
 
         // Allowance should still be infinite
         vm.prank(recipient);
-        assertEq(token.allowance(initialHolder, recipient), type(uint256).max);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), type(uint256).max);
     }
 
     // Approve Edge Cases Tests
@@ -300,51 +300,51 @@ contract SERC20Test is Test {
         // emit Approval(initialHolder, recipient, 0);
 
         vm.prank(initialHolder);
-        token.approve(recipient, 50 * 10**18);
+        token.approve(saddress(recipient), suint256(50 * 10**18));
     }
 
     function test_ApproveFromZeroAddress() public {
         vm.prank(address(0));
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidApprover.selector, address(0)));
-        token.approve(recipient, 100);
+        token.approve(saddress(recipient), suint256(100));
     }
 
     function test_ApproveToZeroAddress() public {
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSpender.selector, address(0)));
-        token.approve(address(0), 100);
+        token.approve(saddress(address(0)), suint256(100));
     }
 
     function test_ApproveReplacesExistingValue() public {
         // First approval
         vm.prank(initialHolder);
-        token.approve(recipient, 100);
+        token.approve(saddress(recipient), suint256(100));
 
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, recipient), 100);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 100);
 
         // Replace with new value
         vm.prank(initialHolder);
-        token.approve(recipient, 200);
+        token.approve(saddress(recipient), suint256(200));
 
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, recipient), 200);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 200);
     }
 
     function test_ApproveZeroValue() public {
         // Initial non-zero approval
         vm.prank(initialHolder);
-        token.approve(recipient, 100);
+        token.approve(saddress(recipient), suint256(100));
 
         // Zero approval should emit event with zero value
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, recipient, 0);
 
         vm.prank(initialHolder);
-        token.approve(recipient, 0);
+        token.approve(saddress(recipient), suint256(0));
 
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, recipient), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 0);
     }
 
     function test_ApproveDoesNotRequireBalance() public {
@@ -352,16 +352,16 @@ contract SERC20Test is Test {
         
         // Approve more than balance
         vm.prank(initialHolder);
-        token.approve(recipient, largeAmount);
+        token.approve(saddress(recipient), suint256(largeAmount));
 
         // Check allowance is set despite insufficient balance
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, recipient), largeAmount);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), largeAmount);
 
         // But transferFrom should still fail
         vm.prank(recipient);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
-        token.transferFrom(initialHolder, anotherAccount, largeAmount);
+        token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(largeAmount));
     }
 
     function test_ApproveTwiceEmitsEvents() public {
@@ -370,14 +370,14 @@ contract SERC20Test is Test {
         // emit Approval(initialHolder, recipient, 0);
 
         vm.prank(initialHolder);
-        token.approve(recipient, 100);
+        token.approve(saddress(recipient), suint256(100));
 
         // // Second approval should also emit event
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, recipient, 0);
 
         vm.prank(initialHolder);
-        token.approve(recipient, 200);
+        token.approve(saddress(recipient), suint256(200)    );
     }
 
 }
@@ -409,7 +409,7 @@ contract SERC20DecimalsTest is Test {
         token6.mint(holder, amount);
 
         vm.prank(holder);
-        assertEq(token6.balanceOf(holder), amount);
+        assertEq(token6.balanceOf(saddress(holder)), amount);
         assertEq(token6.totalSupply(), amount);
     }
 
@@ -418,7 +418,7 @@ contract SERC20DecimalsTest is Test {
         token0.mint(holder, amount);
 
         vm.prank(holder);
-        assertEq(token0.balanceOf(holder), amount);
+        assertEq(token0.balanceOf(saddress(holder)), amount);
         assertEq(token0.totalSupply(), amount);
     }
 
@@ -427,13 +427,13 @@ contract SERC20DecimalsTest is Test {
         token6.mint(holder, amount);
 
         vm.prank(holder);
-        token6.transfer(recipient, 50 * 10**6);
+        token6.transfer(saddress(recipient), suint256(50 * 10**6));
 
         vm.prank(holder);
-        assertEq(token6.balanceOf(holder), 50 * 10**6);
+        assertEq(token6.balanceOf(saddress(holder)), 50 * 10**6);
         
         vm.prank(recipient);
-        assertEq(token6.balanceOf(recipient), 50 * 10**6);
+        assertEq(token6.balanceOf(saddress(recipient)), 50 * 10**6);
     }
 
     function test_TransferWithZeroDecimals() public {
@@ -441,13 +441,13 @@ contract SERC20DecimalsTest is Test {
         token0.mint(holder, amount);
 
         vm.prank(holder);
-        token0.transfer(recipient, 50);
+        token0.transfer(saddress(recipient), suint256(50));
 
         vm.prank(holder);
-        assertEq(token0.balanceOf(holder), 50);
+        assertEq(token0.balanceOf(saddress(holder)), 50);
         
         vm.prank(recipient);
-        assertEq(token0.balanceOf(recipient), 50);
+        assertEq(token0.balanceOf(saddress(recipient)), 50);
     }
 
     function test_SmallestUnitTransferSixDecimals() public {
@@ -456,13 +456,13 @@ contract SERC20DecimalsTest is Test {
 
         // Transfer 1 unit (0.000001 token)
         vm.prank(holder);
-        token6.transfer(recipient, 1);
+        token6.transfer(saddress(recipient), suint256(1));
 
         vm.prank(holder);
-        assertEq(token6.balanceOf(holder), amount - 1);
+        assertEq(token6.balanceOf(saddress(holder)), amount - 1);
         
         vm.prank(recipient);
-        assertEq(token6.balanceOf(recipient), 1);
+        assertEq(token6.balanceOf(saddress(recipient)), 1);
     }
 
     function test_SmallestUnitTransferZeroDecimals() public {
@@ -471,13 +471,13 @@ contract SERC20DecimalsTest is Test {
 
         // Transfer 1 unit (1 whole token for 0 decimals)
         vm.prank(holder);
-        token0.transfer(recipient, 1);
+        token0.transfer(saddress(recipient), suint256(1));
 
         vm.prank(holder);
-        assertEq(token0.balanceOf(holder), amount - 1);
+        assertEq(token0.balanceOf(saddress(holder)), amount - 1);
         
         vm.prank(recipient);
-        assertEq(token0.balanceOf(recipient), 1);
+        assertEq(token0.balanceOf(saddress(recipient)), 1);
     }
 
     function test_MaxSupplyWithDifferentDecimals() public {
@@ -534,18 +534,18 @@ contract SERC20AllowanceTest is Test {
 
         // Set initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, initialAllowance);
+        token.approve(saddress(spender), suint256(initialAllowance));
 
         // // Increase allowance and check event
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, spender, 0); // Zero value for privacy
 
         vm.prank(initialHolder);
-        token.increaseAllowance(spender, addedValue);
+        token.increaseAllowance(saddress(spender), suint256(addedValue));
 
         // Check new allowance (visible to owner)
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), initialAllowance + addedValue);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), initialAllowance + addedValue);
     }
 
     function test_DecreaseAllowance() public {
@@ -554,18 +554,18 @@ contract SERC20AllowanceTest is Test {
 
         // Set initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, initialAllowance);
+        token.approve(saddress(spender), suint256(initialAllowance));
 
         // // Decrease allowance and check event
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, spender, 0); // Zero value for privacy
 
         vm.prank(initialHolder);
-        token.decreaseAllowance(spender, subtractedValue);
+        token.decreaseAllowance(saddress(spender), suint256(subtractedValue));
 
         // Check new allowance (visible to owner)
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), initialAllowance - subtractedValue);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), initialAllowance - subtractedValue);
     }
 
     // Privacy Tests
@@ -573,43 +573,43 @@ contract SERC20AllowanceTest is Test {
     function test_IncreaseAllowancePrivacy() public {
         // Set and increase allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
         
         vm.prank(initialHolder);
-        token.increaseAllowance(spender, 50);
+        token.increaseAllowance(saddress(spender), suint256(50));
 
         // Owner can see allowance
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 150);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 150);
 
         // Spender can see allowance
         vm.prank(spender);
-        assertEq(token.allowance(initialHolder, spender), 150);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 150);
 
         // Other accounts see zero
         vm.prank(otherAccount);
-        assertEq(token.allowance(initialHolder, spender), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
     }
 
     function test_DecreaseAllowancePrivacy() public {
         // Set and decrease allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
         
         vm.prank(initialHolder);
-        token.decreaseAllowance(spender, 50);
+        token.decreaseAllowance(saddress(spender), suint256(50));
 
         // Owner can see allowance
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 50);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 50);
 
         // Spender can see allowance
         vm.prank(spender);
-        assertEq(token.allowance(initialHolder, spender), 50);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 50);
 
         // Other accounts see zero
         vm.prank(otherAccount);
-        assertEq(token.allowance(initialHolder, spender), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
     }
 
     // Edge Cases
@@ -617,44 +617,44 @@ contract SERC20AllowanceTest is Test {
     function test_DecreaseAllowanceBelowZeroFails() public {
         // Set initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Try to decrease by more than current allowance
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
-        token.decreaseAllowance(spender, 101);
+        token.decreaseAllowance(saddress(spender), suint256(101));
 
         // Allowance should remain unchanged
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 100);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
     }
 
     function test_IncreaseAllowanceToMax() public {
         // Start with some allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Increase to max
         vm.prank(initialHolder);
-        token.increaseAllowance(spender, type(uint256).max - 100);
+        token.increaseAllowance(saddress(spender), suint256(type(uint256).max - 100));
 
         // Check max allowance
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), type(uint256).max);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), type(uint256).max);
     }
 
     function test_MultipleAllowanceUpdates() public {
         // Multiple increases
         vm.startPrank(initialHolder);
-        token.approve(spender, 100);
-        token.increaseAllowance(spender, 50);
-        token.increaseAllowance(spender, 75);
-        assertEq(token.allowance(initialHolder, spender), 225);
+        token.approve(saddress(spender), suint256(100));
+        token.increaseAllowance(saddress(spender), suint256(50));
+        token.increaseAllowance(saddress(spender), suint256(75));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 225);
 
         // Multiple decreases
-        token.decreaseAllowance(spender, 25);
-        token.decreaseAllowance(spender, 50);
-        assertEq(token.allowance(initialHolder, spender), 150);
+        token.decreaseAllowance(saddress(spender), suint256(25));
+        token.decreaseAllowance(saddress(spender), suint256(50));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 150);
         vm.stopPrank();
     }
 
@@ -664,17 +664,17 @@ contract SERC20AllowanceTest is Test {
         // // Increase by zero
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, spender, 0);
-        token.increaseAllowance(spender, 0);
-        assertEq(token.allowance(initialHolder, spender), 0);
+        token.increaseAllowance(saddress(spender), suint256(0));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
 
         // Set non-zero allowance
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // // Decrease by zero
         // vm.expectEmit(true, true, false, true);
         // emit Approval(initialHolder, spender, 0);
-        token.decreaseAllowance(spender, 0);
-        assertEq(token.allowance(initialHolder, spender), 100);
+        token.decreaseAllowance(saddress(spender), suint256(0));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
         
         vm.stopPrank();
     }
@@ -684,18 +684,18 @@ contract SERC20AllowanceTest is Test {
         
         // Setup allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Increase allowance and perform transfer
         vm.prank(initialHolder);
-        token.increaseAllowance(spender, 50);
+        token.increaseAllowance(saddress(spender), suint256(50));
 
         vm.prank(spender);
-        token.transferFrom(initialHolder, otherAccount, transferAmount);
+        token.transferFrom(saddress(initialHolder), saddress(otherAccount), suint256(transferAmount));
 
         // Check remaining allowance
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 100); // 150 - 50
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100); // 150 - 50
     }
 
     // Additional Edge Cases for Increase/Decrease Allowance
@@ -704,85 +704,85 @@ contract SERC20AllowanceTest is Test {
         // Try to decrease allowance when there was no approved amount before
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
-        token.decreaseAllowance(spender, 1);
+        token.decreaseAllowance(saddress(spender), suint256(1));
 
         // Set initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Try to decrease by more than current allowance
         vm.prank(initialHolder);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, spender, 0, 0));
-        token.decreaseAllowance(spender, 101);
+        token.decreaseAllowance(saddress(spender), suint256(101));
 
         // Allowance should remain unchanged
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 100);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
     }
 
     function test_IncreaseAllowanceOverflow() public {
         // Set high initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, type(uint256).max - 1);
+        token.approve(saddress(spender), suint256(type(uint256).max - 1));
 
         // Try to increase allowance which would cause overflow
         vm.prank(initialHolder);
         vm.expectRevert();  // Should revert on overflow
-        token.increaseAllowance(spender, 2);
+        token.increaseAllowance(saddress(spender), suint256(2));
     }
 
     function test_AllowanceUpdatesWithZeroTransfer() public {
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Zero value transfer should NOT decrease allowance
         vm.prank(spender);
-        token.transferFrom(initialHolder, otherAccount, 0);
+        token.transferFrom(saddress(initialHolder), saddress(otherAccount), suint256(0));
 
         // Allowance should remain unchanged
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 100);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
     }
 
     function test_IncreaseAllowanceWithZeroInitial() public {
         // Increase allowance when there was no approved amount before
         vm.prank(initialHolder);
-        token.increaseAllowance(spender, 100);
+        token.increaseAllowance(saddress(spender), suint256(100));
 
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 100);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
     }
 
     function test_DecreaseAllowanceToZero() public {
         // Set initial allowance
         vm.prank(initialHolder);
-        token.approve(spender, 100);
+        token.approve(saddress(spender), suint256(100));
 
         // Decrease allowance to exactly zero
         vm.prank(initialHolder);
-        token.decreaseAllowance(spender, 100);
+        token.decreaseAllowance(saddress(spender), suint256(100));
 
         vm.prank(initialHolder);
-        assertEq(token.allowance(initialHolder, spender), 0);
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
     }
 
     function test_ConsecutiveAllowanceUpdates() public {
         vm.startPrank(initialHolder);
         
         // Multiple increases
-        token.increaseAllowance(spender, 50);
-        token.increaseAllowance(spender, 30);
-        assertEq(token.allowance(initialHolder, spender), 80);
+        token.increaseAllowance(saddress(spender), suint256(50));
+        token.increaseAllowance(saddress(spender), suint256(30));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 80);
 
         // Multiple decreases
-        token.decreaseAllowance(spender, 20);
-        token.decreaseAllowance(spender, 10);
-        assertEq(token.allowance(initialHolder, spender), 50);
+        token.decreaseAllowance(saddress(spender), suint256(20));
+        token.decreaseAllowance(saddress(spender), suint256(10));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 50);
 
         // Mix of increases and decreases
-        token.increaseAllowance(spender, 25);
-        token.decreaseAllowance(spender, 15);
-        assertEq(token.allowance(initialHolder, spender), 60);
+        token.increaseAllowance(saddress(spender), suint256(25));
+        token.decreaseAllowance(saddress(spender), suint256(15));
+        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 60);
 
         vm.stopPrank();
     }
@@ -858,18 +858,18 @@ contract SERC20MintBurnTest is Test {
         
         // Need to be the account owner to see the balance
         vm.prank(initialHolder);
-        uint256 previousBalance = token.balanceOf(initialHolder);
+        uint256 previousBalance = token.balanceOf(saddress(initialHolder));
         
         token.mint(initialHolder, amount);
         
         // Need to be the account owner to see the updated balance
         vm.prank(initialHolder);
-        assertEq(token.balanceOf(initialHolder), previousBalance + amount);
+        assertEq(token.balanceOf(saddress(initialHolder)), previousBalance + amount);
     }
 
     function test_BurnEntireBalance() public {
         token.burn(initialHolder, initialSupply);
-        assertEq(token.balanceOf(initialHolder), 0);
+        assertEq(token.balanceOf(saddress(initialHolder)), 0);
     }
 
     function test_MintMaxUintValue() public {

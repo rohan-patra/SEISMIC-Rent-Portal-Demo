@@ -78,12 +78,8 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * Returns the balance of the caller if `account` matches the caller's address,
      * returns 0 otherwise to maintain privacy.
      */
-    function balanceOf(address account) public view virtual returns (uint256) {
-        // if address is caller, return balance
-        if (account == _msgSender()) {
-            return uint256(_balances[saddress(account)]);
-        }
-        return 0;
+    function balanceOf() public view virtual override returns (uint256) {
+        return uint256(_balances[saddress(_msgSender())]);
     }
 
     /**

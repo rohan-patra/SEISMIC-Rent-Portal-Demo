@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {SRC20} from "./SRC20.sol";
-import {Context} from "../openzeppelin/utils/Context.sol";
+import {SERC20} from "./SERC20.sol";
 
 /**
  * @title USDY - Yield-bearing USD Stablecoin with Privacy Features
  * @notice A yield-bearing stablecoin that uses shielded types for privacy protection
- * @dev Implements SRC20 for shielded balances and transfers
+ * @dev Implements SERC20 for shielded balances and transfers
  */
-contract USDY is SRC20, Context {
+contract USDY is SERC20 {
     // Base value for rewardMultiplier (18 decimals)
     uint256 private constant BASE = 1e18;
     
@@ -46,7 +45,7 @@ contract USDY is SRC20, Context {
      * @notice Constructs the USDY contract
      * @param admin The address that will have admin rights
      */
-    constructor(address admin) SRC20("USD Yield", "USDY", 18) {
+    constructor(address admin) SERC20("USD Yield", "USDY") {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         rewardMultiplier = suint256(BASE); // Initialize with 1.0 multiplier
     }

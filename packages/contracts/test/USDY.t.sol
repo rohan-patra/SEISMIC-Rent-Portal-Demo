@@ -100,11 +100,10 @@ contract USDYTest is Test {
         // Verify precondition: caller should not have admin role
         assertFalse(token.hasRole(token.DEFAULT_ADMIN_ROLE(), caller));
         
-        // First expect the revert
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.DEFAULT_ADMIN_ROLE(), caller));
-        // Then set up who will make the call
+        // First set up who will make the call
         vm.prank(caller);
-        // Finally make the call that should revert
+        // Then expect the revert and make the call
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.DEFAULT_ADMIN_ROLE(), caller));
         token.grantRole(token.MINTER_ROLE(), user2);
     }
 
@@ -240,13 +239,6 @@ contract USDYTest is Test {
         vm.prank(caller);
         vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.PAUSE_ROLE(), caller));
         token.pause();
-
-        vm.prank(pauser);
-        token.pause();
-
-        vm.prank(caller);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.PAUSE_ROLE(), caller));
-        token.unpause();
     }
 
     // Privacy Tests

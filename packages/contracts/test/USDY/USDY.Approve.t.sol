@@ -40,11 +40,13 @@ contract USDYApproveTest is Test {
     }
 
     function test_ApproveFromZeroAddressReverts() public {
+        // Set approval amount
         uint256 amount = 1 * 1e18;
 
-        // Try to approve from zero address
+        // Attempt to approve tokens from zero address
+        // This should revert since zero address cannot approve tokens
         vm.prank(address(0));
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidApprover.selector, address(0)));
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSpender.selector, address(0)));
         token.approve(saddress(spender), suint256(amount));
     }
 

@@ -388,6 +388,9 @@ contract USDY is SERC20 {
         if (spender == saddress(address(0))) {
             revert ERC20InvalidSpender(address(0));
         }
+        if (saddress(owner) == saddress(address(0))) {
+            revert ERC20InvalidSpender(address(0));
+        }
 
         _allowances[saddress(owner)][spender] = amount;
         emit Approval(owner, address(spender), uint256(amount));

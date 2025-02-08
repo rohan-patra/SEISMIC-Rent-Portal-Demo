@@ -16,6 +16,10 @@ contract USDY is SERC20 {
     // Current reward multiplier, represents accumulated yield
     suint256 private rewardMultiplier;
 
+    // Shielded shares storage
+    mapping(saddress => suint256) private _shares;
+    suint256 private _totalShares;
+
     // Access control roles
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -56,6 +60,74 @@ contract USDY is SERC20 {
      */
     function decimals() public pure override returns (uint8) {
         return 18;
+    }
+
+    /**
+     * @notice Converts an amount of tokens to shares
+     * @param amount The amount of tokens to convert
+     * @return The equivalent amount of shares
+     */
+    function convertToShares(suint256 amount) internal view returns (suint256) {
+        return (amount * suint256(BASE)) / rewardMultiplier;
+    }
+
+    /**
+     * @notice Converts an amount of shares to tokens
+     * @param shares The amount of shares to convert
+     * @return The equivalent amount of tokens
+     */
+    function convertToTokens(suint256 shares) internal view returns (suint256) {
+        return (shares * rewardMultiplier) / suint256(BASE);
+    }
+
+    /**
+     * @notice Returns the total amount of shares
+     * @return The total amount of shares
+     */
+    function totalShares() public view returns (uint256) {
+        return uint256(_totalShares);
+    }
+
+    /**
+     * @notice Returns the total supply of tokens
+     * @return The total supply of tokens, accounting for yield
+     */
+    function totalSupply() public view override returns (uint256) {
+        return uint256(convertToTokens(_totalShares));
+    }
+
+    /**
+     * @notice Returns the current reward multiplier
+     * @return The current reward multiplier value
+     */
+    function getCurrentRewardMultiplier() public view returns (uint256) {
+        return uint256(rewardMultiplier);
+    }
+
+    /**
+     * @notice Returns the amount of shares owned by the account
+     * @param account The account to check
+     * @return The amount of shares owned by the account, or 0 if caller is not the account owner
+     */
+    function sharesOf(saddress account) public view returns (uint256) {
+        // Only return shares if caller is the account owner
+        if (account == saddress(_msgSender())) {
+            return uint256(_shares[account]);
+        }
+        return 0;
+    }
+
+    /**
+     * @notice Override balanceOf to calculate balance based on shares and current reward multiplier
+     * @param account The account to check the balance of
+     * @return The current balance in tokens, accounting for yield
+     */
+    function balanceOf(saddress account) public view override returns (uint256) {
+        // Only return balance if caller is the account owner
+        if (account == saddress(_msgSender())) {
+            return uint256(convertToTokens(_shares[account]));
+        }
+        return 0;
     }
 
     /**
@@ -123,24 +195,6 @@ contract USDY is SERC20 {
     }
 
     /**
-     * @notice Converts an amount of tokens to shares
-     * @param amount The amount of tokens to convert
-     * @return The equivalent amount of shares
-     */
-    function convertToShares(suint256 amount) internal view returns (suint256) {
-        return (amount * suint256(BASE)) / rewardMultiplier;
-    }
-
-    /**
-     * @notice Converts an amount of shares to tokens
-     * @param shares The amount of shares to convert
-     * @return The equivalent amount of tokens
-     */
-    function convertToTokens(suint256 shares) internal view returns (suint256) {
-        return (shares * rewardMultiplier) / suint256(BASE);
-    }
-
-    /**
      * @notice Updates the reward multiplier to reflect new yield
      * @param increment The amount to increase the multiplier by
      */
@@ -174,12 +228,36 @@ contract USDY is SERC20 {
     }
 
     /**
+     * @notice Mints new tokens to a shielded address
+     * @param to The shielded address to mint to
+     * @param amount The amount to mint
+     */
+    function mintShielded(saddress to, suint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
+        if (to == saddress(address(0))) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+        _update(saddress(address(0)), to, amount);
+    }
+
+    /**
      * @notice Burns tokens from an address
      * @param from The address to burn from
      * @param amount The amount to burn
      */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
         _burn(from, amount);
+    }
+
+    /**
+     * @notice Burns tokens from a shielded address
+     * @param from The shielded address to burn from
+     * @param amount The amount to burn
+     */
+    function burnShielded(saddress from, suint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
+        if (from == saddress(address(0))) {
+            revert ERC20InvalidSender(address(0));
+        }
+        _update(from, saddress(address(0)), amount);
     }
 
     /**
@@ -199,20 +277,45 @@ contract USDY is SERC20 {
     }
 
     /**
-     * @notice Updates token balances, handling yield conversion
-     * @dev Overrides SERC20's _update to handle yield conversion
+     * @dev Override _update to handle shielded shares accounting
+     * @param from The sender address
+     * @param to The recipient address  
+     * @param value The amount of tokens to transfer
      */
     function _update(saddress from, saddress to, suint256 value) internal override {
+        _beforeTokenTransfer(from, to, value);
+
+        suint256 shares = convertToShares(value);
+
         if (from == saddress(address(0))) {
-            // Minting - convert to shares
-            super._update(from, to, convertToShares(value));
+            // Minting
+            _totalShares += shares;
+            _shares[to] += shares;
         } else if (to == saddress(address(0))) {
-            // Burning - convert to shares
-            super._update(from, to, convertToShares(value));
+            // Burning
+            suint256 fromShares = _shares[from];
+            if (fromShares < shares) {
+                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values for privacy
+            }
+            unchecked {
+                _shares[from] = fromShares - shares;
+                _totalShares -= shares;
+            }
         } else {
-            // Transfer - convert to shares
-            super._update(from, to, convertToShares(value));
+            // Transfer
+            suint256 fromShares = _shares[from];
+            if (fromShares < shares) {
+                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values for privacy
+            }
+            unchecked {
+                _shares[from] = fromShares - shares;
+                _shares[to] += shares;
+            }
         }
+
+        emit Transfer(address(from), address(to), uint256(0)); // Zero value for privacy
+
+        _afterTokenTransfer(from, to, value);
     }
 
     /**

@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {USDY} from "../../../src/USDY.sol";
+import {USDY} from "../../src/USDY.sol";
 
 contract USDYAllowanceTest is Test {
     USDY public token;

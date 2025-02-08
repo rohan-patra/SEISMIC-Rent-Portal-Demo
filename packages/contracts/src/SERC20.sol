@@ -69,7 +69,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
     /**
      * @dev See {SIERC20-totalSupply}.
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public view virtual returns (uint256) {
         return _totalSupply;
     }
 

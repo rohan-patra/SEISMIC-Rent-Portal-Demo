@@ -231,25 +231,40 @@ contract USDYTest is Test {
         uint256 increment = 0.1e18; // 10% increase
         uint256 initialBalance = INITIAL_MINT;
         
+        // Add yield
         vm.prank(oracle);
         vm.expectEmit(true, true, true, true);
         emit RewardMultiplierUpdated(BASE + increment);
         token.addRewardMultiplier(increment);
 
+        // After yield, initial balance is worth more tokens
+        uint256 yieldAdjustedInitialBalance = (initialBalance * (BASE + increment)) / BASE;
+        
         // Transfer after yield increase
         uint256 transferAmount = 100e18;
         
-        // Calculate expected shares and amounts
-        uint256 expectedShares = (transferAmount * BASE) / (BASE + increment);
+        // Calculate shares that will be transferred
+        uint256 transferShares = (transferAmount * BASE) / (BASE + increment);
+        
+        // Calculate expected final balances
+        uint256 expectedUser1Shares = initialBalance - transferShares;
+        uint256 expectedUser1Balance = (expectedUser1Shares * (BASE + increment)) / BASE;
+        uint256 expectedUser2Balance = (transferShares * (BASE + increment)) / BASE;
         
         vm.prank(user1);
         token.transfer(saddress(user2), suint256(transferAmount));
 
         // Check balances
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), initialBalance - transferAmount);
+        uint256 user1Balance = token.balanceOf(saddress(user1));
         vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), expectedShares);
+        uint256 user2Balance = token.balanceOf(saddress(user2));
+        
+        assertEq(user1Balance, expectedUser1Balance, "User1 balance incorrect");
+        assertEq(user2Balance, expectedUser2Balance, "User2 balance incorrect");
+        
+        // Verify total supply increased by yield
+        assertEq(token.totalSupply(), yieldAdjustedInitialBalance, "Total supply incorrect");
     }
 
     function test_OnlyOracleCanUpdateRewardMultiplier() public {

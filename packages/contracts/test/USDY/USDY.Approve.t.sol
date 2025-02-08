@@ -203,14 +203,16 @@ contract USDYApproveTest is Test {
         token.approve(saddress(spender), suint256(amount));
 
         // Burn all tokens (should not affect allowance)
+        bytes32 burner_role = token.BURNER_ROLE();
         vm.prank(admin);
-        token.grantRole(token.BURNER_ROLE(), admin);
+        token.grantRole(burner_role, admin);
+        
         vm.prank(admin);
         token.burn(saddress(owner), suint256(INITIAL_MINT));
 
-        // Check allowance remains unchanged
+        // Verify allowance remains unchanged after burning balance
         vm.prank(owner);
-        assertEq(token.allowance(saddress(owner), saddress(spender)), amount);
+        assertEq(token.allowance(saddress(owner), saddress(spender)), amount, "Allowance changed after burning balance");
     }
 
     // Transfer From Tests

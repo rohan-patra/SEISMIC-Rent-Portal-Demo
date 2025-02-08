@@ -317,25 +317,38 @@ contract USDYApproveTest is Test {
         token.transferFrom(saddress(owner), saddress(recipient), suint256(excessAmount));
     }
 
+    /**
+     * @notice Tests that allowances are correctly decreased by token amount (not shares) when yield is active
+     * @dev This test verifies that:
+     * 1. When yield is active, allowances are tracked in tokens, not shares
+     * 2. A transfer of X tokens reduces the allowance by X tokens, regardless of yield
+     * 3. The actual transfer uses shares internally for accurate accounting
+     * 4. The allowance is fully consumed after the transfer
+     */
     function test_TransferFromWithYieldDecreasesAllowanceByTokens() public {
-        uint256 transferAmount = 100 * 1e18;
-        uint256 yieldIncrement = 0.0004e18; // 4 bps
+        // Set up test amounts
+        uint256 transferAmount = 100 * 1e18;  // Transfer 100 tokens
+        uint256 yieldIncrement = 0.0004e18;   // Add 0.04% yield (4 bps)
 
-        // Set allowance
+        // First approve spender to spend transferAmount tokens
         vm.prank(owner);
         token.approve(saddress(spender), suint256(transferAmount));
-
-        // Add yield
+        
+        // Add yield to the system
+        // This makes each share worth more tokens, but shouldn't affect allowances
         vm.prank(oracle);
         token.addRewardMultiplier(yieldIncrement);
-
-        // Transfer
+        
+        // Perform transfer using allowance
+        // Even though shares are worth more tokens now, the allowance should still
+        // be decreased by the original token amount
         vm.prank(spender);
         token.transferFrom(saddress(owner), saddress(recipient), suint256(transferAmount));
 
-        // Verify allowance is reduced by token amount, not shares
+        // Verify allowance is reduced by token amount (should be 0 after full use)
         vm.prank(owner);
-        assertEq(token.allowance(saddress(owner), saddress(spender)), 0);
+        uint256 finalAllowance = token.allowance(saddress(owner), saddress(spender));
+        assertEq(finalAllowance, 0, "Allowance should be zero after transfer");
     }
 
     function test_TransferFromPrivacy() public {

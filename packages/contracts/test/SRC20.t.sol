@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {SERC20} from "../src/SERC20.sol";
-import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
+import {SRC20, UnauthorizedView} from "../src/SRC20.sol";
+import {IERC20Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
 
-contract TestSERC20 is SERC20 {
-    constructor(string memory name, string memory symbol) SERC20(name, symbol) {}
+contract TestSRC20 is SRC20 {
+    constructor(string memory name, string memory symbol) SRC20(name, symbol) {}
 
     function mint(saddress account, suint256 value) public {
         _mint(account, value);
@@ -17,10 +17,10 @@ contract TestSERC20 is SERC20 {
     }
 }
 
-contract TestSERC20Decimals is SERC20 {
+contract TestSRC20Decimals is SRC20 {
     uint8 private immutable _decimals;
 
-    constructor(string memory name, string memory symbol, uint8 decimals_) SERC20(name, symbol) {
+    constructor(string memory name, string memory symbol, uint8 decimals_) SRC20(name, symbol) {
         _decimals = decimals_;
     }
 
@@ -37,8 +37,23 @@ contract TestSERC20Decimals is SERC20 {
     }
 }
 
-contract SERC20Test is Test {
-    TestSERC20 public token;
+contract TestSRC20WithEvents is TestSRC20 {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(string memory name, string memory symbol) TestSRC20(name, symbol) {}
+
+    function emitTransfer(address from, address to, uint256 value) public virtual override {
+        emit Transfer(from, to, value);
+    }
+
+    function emitApproval(address owner, address spender, uint256 value) public virtual override {
+        emit Approval(owner, spender, value);
+    }
+}
+
+contract SRC20Test is Test {
+    TestSRC20WithEvents public token;
     address public initialHolder;
     address public recipient;
     address public anotherAccount;
@@ -53,7 +68,7 @@ contract SERC20Test is Test {
         anotherAccount = address(3);
         initialSupply = 100 * 10**18; // 100 tokens with 18 decimals
 
-        token = new TestSERC20("My Token", "MTKN");
+        token = new TestSRC20WithEvents("My Token", "MTKN");
         token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
@@ -72,8 +87,9 @@ contract SERC20Test is Test {
         vm.prank(initialHolder);
         assertEq(token.balanceOf(saddress(initialHolder)), initialSupply);
 
-        // When checking other's balance (should return 0 for privacy)
-        assertEq(token.balanceOf(saddress(initialHolder)), 0);
+        // When checking other's balance (should revert)
+        vm.expectRevert(UnauthorizedView.selector);
+        token.balanceOf(saddress(initialHolder));
     }
 
     function test_Transfer() public {
@@ -115,9 +131,10 @@ contract SERC20Test is Test {
         vm.prank(recipient);
         assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), initialSupply);
 
-        // Check allowance (should be 0 for others)
+        // Check allowance (should revert for others)
         vm.prank(anotherAccount);
-        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 0);
+        vm.expectRevert(UnauthorizedView.selector);
+        token.allowance(saddress(initialHolder), saddress(recipient));
     }
 
     function test_TransferFrom() public {
@@ -169,9 +186,8 @@ contract SERC20Test is Test {
     function test_TransferEmitsEvent() public {
         uint256 transferAmount = 50 * 10**18;
         
-        // We expect a Transfer event with address(0) as recipient and 0 value (for privacy)
         vm.expectEmit(true, true, false, true);
-        emit Transfer(initialHolder, address(0), 0);
+        emit Transfer(initialHolder, recipient, transferAmount);
         
         vm.prank(initialHolder);
         token.transfer(saddress(recipient), suint256(transferAmount));
@@ -180,9 +196,8 @@ contract SERC20Test is Test {
     function test_MintEmitsTransferEvent() public {
         uint256 mintAmount = 100 * 10**18;
         
-        // Minting should emit a Transfer from zero address with address(0) as recipient and 0 value (for privacy)
         vm.expectEmit(true, true, false, true);
-        emit Transfer(address(0), address(0), 0);
+        emit Transfer(address(0), recipient, mintAmount);
         
         token.mint(saddress(recipient), suint256(mintAmount));
     }
@@ -190,9 +205,8 @@ contract SERC20Test is Test {
     function test_BurnEmitsTransferEvent() public {
         uint256 burnAmount = 50 * 10**18;
         
-        // Burning should emit a Transfer to address(0) with address(0) as recipient and 0 value (for privacy)
         vm.expectEmit(true, true, false, true);
-        emit Transfer(initialHolder, address(0), 0);
+        emit Transfer(initialHolder, address(0), burnAmount);
         
         token.burn(saddress(initialHolder), suint256(burnAmount));
     }
@@ -202,20 +216,18 @@ contract SERC20Test is Test {
         
         // Approve first
         vm.prank(initialHolder);
-        token.approve(saddress(recipient), suint256(transferAmount) );
+        token.approve(saddress(recipient), suint256(transferAmount));
         
-        // TransferFrom should emit a Transfer event with address(0) as recipient and 0 value (for privacy)
         vm.expectEmit(true, true, false, true);
-        emit Transfer(initialHolder, address(0), 0);
+        emit Transfer(initialHolder, anotherAccount, transferAmount);
         
         vm.prank(recipient);
         token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(transferAmount));
     }
 
     function test_ZeroValueTransferEmitsEvent() public {
-        // Even zero-value transfers should emit an event with address(0) as recipient and 0 value
         vm.expectEmit(true, true, false, true);
-        emit Transfer(initialHolder, address(0), 0);
+        emit Transfer(initialHolder, recipient, 0);
         
         vm.prank(initialHolder);
         token.transfer(saddress(recipient), suint256(0));
@@ -242,11 +254,8 @@ contract SERC20Test is Test {
         vm.prank(initialHolder);
         token.approve(saddress(recipient), suint256(type(uint256).max));
 
-        // For TransferFrom with infinite approval:
-        // 1. Should emit Transfer event (with address(0) as recipient and 0 value for privacy)
-        // 2. Should NOT emit Approval event
         vm.expectEmit(true, true, false, true);
-        emit Transfer(initialHolder, address(0), 0);
+        emit Transfer(initialHolder, anotherAccount, 50 * 10**18);
         
         vm.prank(recipient);
         token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(50 * 10**18));
@@ -294,13 +303,14 @@ contract SERC20Test is Test {
 
     // Approve Edge Cases Tests
 
-    function test_ApproveEmitsEvent() public {
-        // // Should emit Approval event with value 0 (for privacy)
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, recipient, 0);
-
+    function test_ApproveEmitsNoEvent() public {
+        // No event expectation since emitApproval is a no-op by default
         vm.prank(initialHolder);
         token.approve(saddress(recipient), suint256(50 * 10**18));
+        
+        // Verify the approval was still set
+        vm.prank(initialHolder);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 50 * 10**18);
     }
 
     function test_ApproveFromZeroAddress() public {
@@ -336,10 +346,6 @@ contract SERC20Test is Test {
         vm.prank(initialHolder);
         token.approve(saddress(recipient), suint256(100));
 
-        // Zero approval should emit event with zero value
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, recipient, 0);
-
         vm.prank(initialHolder);
         token.approve(saddress(recipient), suint256(0));
 
@@ -364,27 +370,23 @@ contract SERC20Test is Test {
         token.transferFrom(saddress(initialHolder), saddress(anotherAccount), suint256(largeAmount));
     }
 
-    function test_ApproveTwiceEmitsEvents() public {
-        // // First approval should emit event
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, recipient, 0);
-
+    function test_ApproveTwiceNoEvents() public {
+        // No event expectations since emitApproval is a no-op by default
         vm.prank(initialHolder);
         token.approve(saddress(recipient), suint256(100));
 
-        // // Second approval should also emit event
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, recipient, 0);
-
         vm.prank(initialHolder);
-        token.approve(saddress(recipient), suint256(200)    );
+        token.approve(saddress(recipient), suint256(200));
+        
+        // Verify the final approval was set
+        vm.prank(initialHolder);
+        assertEq(token.allowance(saddress(initialHolder), saddress(recipient)), 200);
     }
-
 }
 
-contract SERC20DecimalsTest is Test {
-    TestSERC20Decimals public token6;
-    TestSERC20Decimals public token0;
+contract SRC20DecimalsTest is Test {
+    TestSRC20Decimals public token6;
+    TestSRC20Decimals public token0;
     address public holder;
     address public recipient;
 
@@ -395,8 +397,8 @@ contract SERC20DecimalsTest is Test {
         recipient = address(2);
 
         // Create tokens with different decimal configurations
-        token6 = new TestSERC20Decimals("Six Decimals", "SIX", 6);
-        token0 = new TestSERC20Decimals("Zero Decimals", "ZERO", 0);
+        token6 = new TestSRC20Decimals("Six Decimals", "SIX", 6);
+        token0 = new TestSRC20Decimals("Zero Decimals", "ZERO", 0);
     }
 
     function test_CustomDecimals() public view {
@@ -507,8 +509,8 @@ contract SERC20DecimalsTest is Test {
     }
 }
 
-contract SERC20AllowanceTest is Test {
-    TestSERC20 public token;
+contract SRC20AllowanceTest is Test {
+    TestSRC20WithEvents public token;
     address public initialHolder;
     address public spender;
     address public otherAccount;
@@ -522,7 +524,7 @@ contract SERC20AllowanceTest is Test {
         otherAccount = address(3);
         initialSupply = 100 * 10**18;
 
-        token = new TestSERC20("My Token", "MTKN");
+        token = new TestSRC20WithEvents("My Token", "MTKN");
         token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
@@ -535,10 +537,6 @@ contract SERC20AllowanceTest is Test {
         // Set initial allowance
         vm.prank(initialHolder);
         token.approve(saddress(spender), suint256(initialAllowance));
-
-        // // Increase allowance and check event
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, spender, 0); // Zero value for privacy
 
         vm.prank(initialHolder);
         token.increaseAllowance(saddress(spender), suint256(addedValue));
@@ -555,10 +553,6 @@ contract SERC20AllowanceTest is Test {
         // Set initial allowance
         vm.prank(initialHolder);
         token.approve(saddress(spender), suint256(initialAllowance));
-
-        // // Decrease allowance and check event
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, spender, 0); // Zero value for privacy
 
         vm.prank(initialHolder);
         token.decreaseAllowance(saddress(spender), suint256(subtractedValue));
@@ -586,9 +580,10 @@ contract SERC20AllowanceTest is Test {
         vm.prank(spender);
         assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 150);
 
-        // Other accounts see zero
+        // Other accounts should revert
         vm.prank(otherAccount);
-        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
+        vm.expectRevert(UnauthorizedView.selector);
+        token.allowance(saddress(initialHolder), saddress(spender));
     }
 
     function test_DecreaseAllowancePrivacy() public {
@@ -607,9 +602,10 @@ contract SERC20AllowanceTest is Test {
         vm.prank(spender);
         assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 50);
 
-        // Other accounts see zero
+        // Other accounts should revert
         vm.prank(otherAccount);
-        assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
+        vm.expectRevert(UnauthorizedView.selector);
+        token.allowance(saddress(initialHolder), saddress(spender));
     }
 
     // Edge Cases
@@ -661,18 +657,12 @@ contract SERC20AllowanceTest is Test {
     function test_ZeroValueAllowanceUpdates() public {
         vm.startPrank(initialHolder);
         
-        // // Increase by zero
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, spender, 0);
         token.increaseAllowance(saddress(spender), suint256(0));
         assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 0);
 
         // Set non-zero allowance
         token.approve(saddress(spender), suint256(100));
 
-        // // Decrease by zero
-        // vm.expectEmit(true, true, false, true);
-        // emit Approval(initialHolder, spender, 0);
         token.decreaseAllowance(saddress(spender), suint256(0));
         assertEq(token.allowance(saddress(initialHolder), saddress(spender)), 100);
         
@@ -788,14 +778,14 @@ contract SERC20AllowanceTest is Test {
     }
 }
 
-contract SERC20MetadataTest is Test {
-    TestSERC20 public token;
+contract SRC20MetadataTest is Test {
+    TestSRC20WithEvents public token;
     string constant NAME = "Test Token";
     string constant SYMBOL = "TST";
     uint8 constant DECIMALS = 18;
 
     function setUp() public {
-        token = new TestSERC20(NAME, SYMBOL);
+        token = new TestSRC20WithEvents(NAME, SYMBOL);
     }
 
     function test_TokenName() public view {
@@ -811,14 +801,14 @@ contract SERC20MetadataTest is Test {
     }
 }
 
-contract SERC20MintBurnTest is Test {
-    TestSERC20 public token;
+contract SRC20MintBurnTest is Test {
+    TestSRC20WithEvents public token;
     address public initialHolder = address(1);
     address public recipient = address(2);
     uint256 public initialSupply = 100;
 
     function setUp() public {
-        token = new TestSERC20("Test Token", "TST");
+        token = new TestSRC20WithEvents("Test Token", "TST");
         token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
@@ -869,7 +859,11 @@ contract SERC20MintBurnTest is Test {
 
     function test_BurnEntireBalance() public {
         token.burn(saddress(initialHolder), suint256(initialSupply));
-        assertEq(token.balanceOf(saddress(initialHolder)), 0);
+        
+        vm.prank(initialHolder);
+        (bool success, uint256 balance) = token.safeBalanceOf(saddress(initialHolder));
+        assertTrue(success);
+        assertEq(balance, 0);
     }
 
     function test_MintMaxUintValue() public {

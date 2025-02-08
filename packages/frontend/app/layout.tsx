@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { WalletProviders } from "@/components/wallet-providers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { Toaster } from "@/components/ui/sonner";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
               </div>
             </nav>
             <div className="p-4">{children}</div>
+            <Toaster richColors />
           </WalletProviders>
         </ThemeProvider>
       </body>

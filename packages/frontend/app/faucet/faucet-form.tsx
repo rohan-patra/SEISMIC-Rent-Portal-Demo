@@ -93,6 +93,7 @@ export function FaucetForm() {
               <FormControl>
                 <Input
                   type="number"
+                  placeholder="100"
                   min={0.01}
                   max={5000}
                   step={0.01}

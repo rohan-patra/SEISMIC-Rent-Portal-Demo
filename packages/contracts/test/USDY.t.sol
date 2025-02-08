@@ -335,26 +335,61 @@ contract USDYTest is Test {
         token.burn(saddress(user1), suint256(100 * 1e18));
     }
 
+    /**
+     * @notice Test yield accumulation behavior with multiple transfers
+     * @dev This test verifies that:
+     * 1. Yield is correctly applied to all token holders when reward multiplier increases
+     * 2. Transfers correctly handle share calculations with active yield
+     * 3. Final balances reflect both transferred amounts and accumulated yield
+     *
+     * The key mechanism being tested:
+     * - Token balances are stored internally as shares
+     * - Initially, shares are 1:1 with tokens
+     * - When yield is added, the shares remain constant but are worth more tokens
+     * - Transfers convert token amounts to shares using current yield rate
+     * - Final balances are calculated by converting shares back to tokens using yield rate
+     */
     function test_YieldAccumulationWithTransfers() public {
-        // Add yield
-        vm.prank(oracle);
-        token.addRewardMultiplier(0.1e18); // 10% increase
+        // Initial state has user1 with INITIAL_MINT tokens (and thus INITIAL_MINT shares)
+        // and user2 with 0 tokens/shares
 
-        // Perform multiple transfers
+        // Add 10% yield by increasing reward multiplier
+        vm.prank(oracle);
+        token.addRewardMultiplier(0.1e18);
+        // Now each share is worth 1.1 tokens
+
+        // Set up transfer amount and calculate corresponding shares
         uint256 transferAmount = 100e18;
-        
-        // Calculate expected shares
+        // When transferring 100 tokens with 1.1 yield rate:
+        // 100 tokens = x shares * 1.1
+        // x shares = 100 * (1/1.1) = 90.909... shares
         uint256 expectedShares = (transferAmount * BASE) / (BASE + 0.1e18);
         
-        vm.startPrank(user1);
-        token.transfer(saddress(user2), suint256(transferAmount));
-        token.transfer(saddress(user2), suint256(transferAmount));
-        vm.stopPrank();
-
-        // Check final balances
+        // Calculate expected final balances
+        // User1 starts with INITIAL_MINT shares (1:1 at initial mint)
+        // After two transfers of expectedShares each:
+        uint256 expectedUser1FinalShares = INITIAL_MINT - (2 * expectedShares);
+        // Convert final shares to tokens using yield rate:
+        uint256 expectedUser1FinalBalance = (expectedUser1FinalShares * (BASE + 0.1e18)) / BASE;
+        // User2 receives 2 * expectedShares, convert to tokens using yield rate:
+        uint256 expectedUser2FinalBalance = (2 * expectedShares * (BASE + 0.1e18)) / BASE;
+        
+        // Perform first transfer
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - (2 * transferAmount));
+        token.transfer(saddress(user2), suint256(transferAmount));
+        
+        // Perform second transfer
+        vm.prank(user1);
+        token.transfer(saddress(user2), suint256(transferAmount));
+
+        // Verify final balances
+        vm.prank(user1);
+        uint256 finalUser1Balance = uint256(token.balanceOf(saddress(user1)));
         vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), 2 * expectedShares);
+        uint256 finalUser2Balance = uint256(token.balanceOf(saddress(user2)));
+
+        // Assert that balances match expected values
+        assertEq(finalUser1Balance, expectedUser1FinalBalance, "User1 balance mismatch");
+        assertEq(finalUser2Balance, expectedUser2FinalBalance, "User2 balance mismatch");
     }
 }

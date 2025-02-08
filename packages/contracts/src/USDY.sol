@@ -51,6 +51,7 @@ contract USDY is SERC20 {
      * @param admin The address that will have admin rights
      */
     constructor(address admin) SERC20("USD Yield", "USDY") {
+        if (admin == address(0)) revert ERC20InvalidReceiver(admin);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         rewardMultiplier = suint256(BASE); // Initialize with 1.0 multiplier
     }
@@ -68,6 +69,7 @@ contract USDY is SERC20 {
      * @return The equivalent amount of shares
      */
     function convertToShares(suint256 amount) internal view returns (suint256) {
+        if (uint256(rewardMultiplier) == 0) return amount;
         return (amount * suint256(BASE)) / rewardMultiplier;
     }
 
@@ -134,8 +136,9 @@ contract USDY is SERC20 {
      * @notice Modifier that checks if the caller has a specific role
      */
     modifier onlyRole(bytes32 role) {
-        if (!hasRole(role, _msgSender())) {
-            revert MissingRole(role, _msgSender());
+        address sender = _msgSender();
+        if (!hasRole(role, sender)) {
+            revert MissingRole(role, sender);
         }
         _;
     }
@@ -152,6 +155,7 @@ contract USDY is SERC20 {
      * @notice Returns true if `account` has been granted `role`
      */
     function hasRole(bytes32 role, address account) public view returns (bool) {
+        if (account == address(0)) return false;
         return _roles[role][account];
     }
 
@@ -160,6 +164,7 @@ contract USDY is SERC20 {
      * @dev The caller must have the admin role
      */
     function grantRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (account == address(0)) revert ERC20InvalidReceiver(account);
         _grantRole(role, account);
     }
 
@@ -168,6 +173,7 @@ contract USDY is SERC20 {
      * @dev The caller must have the admin role
      */
     function revokeRole(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (account == address(0)) revert ERC20InvalidSender(account);
         _revokeRole(role, account);
     }
 
@@ -175,16 +181,20 @@ contract USDY is SERC20 {
      * @notice Internal function to grant a role to an account
      */
     function _grantRole(bytes32 role, address account) internal {
-        _roles[role][account] = true;
-        emit RoleGranted(role, account, _msgSender());
+        if (!hasRole(role, account)) {
+            _roles[role][account] = true;
+            emit RoleGranted(role, account, _msgSender());
+        }
     }
 
     /**
      * @notice Internal function to revoke a role from an account
      */
     function _revokeRole(bytes32 role, address account) internal {
-        _roles[role][account] = false;
-        emit RoleRevoked(role, account, _msgSender());
+        if (hasRole(role, account)) {
+            _roles[role][account] = false;
+            emit RoleRevoked(role, account, _msgSender());
+        }
     }
 
     /**
@@ -201,21 +211,13 @@ contract USDY is SERC20 {
     function addRewardMultiplier(uint256 increment) external onlyRole(ORACLE_ROLE) {
         if (increment == 0) revert ZeroRewardIncrement();
         
-        suint256 newMultiplier = rewardMultiplier + suint256(increment);
-        _setRewardMultiplier(newMultiplier);
-    }
-
-    /**
-     * @notice Sets a new reward multiplier
-     * @param newMultiplier The new multiplier value
-     */
-    function _setRewardMultiplier(suint256 newMultiplier) private {
-        if (newMultiplier < suint256(BASE)) {
-            revert InvalidRewardMultiplier(uint256(newMultiplier));
+        uint256 newMultiplierValue = uint256(rewardMultiplier) + increment;
+        if (newMultiplierValue < BASE) {
+            revert InvalidRewardMultiplier(newMultiplierValue);
         }
-
-        rewardMultiplier = newMultiplier;
-        emit RewardMultiplierUpdated(uint256(newMultiplier));
+        
+        rewardMultiplier = suint256(newMultiplierValue);
+        emit RewardMultiplierUpdated(newMultiplierValue);
     }
 
     /**
@@ -289,7 +291,7 @@ contract USDY is SERC20 {
             // Burning
             suint256 fromShares = _shares[from];
             if (fromShares < shares) {
-                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values for privacy
+                revert ERC20InsufficientBalance(address(from), uint256(fromShares), uint256(shares));
             }
             unchecked {
                 _shares[from] = fromShares - shares;
@@ -299,7 +301,7 @@ contract USDY is SERC20 {
             // Transfer
             suint256 fromShares = _shares[from];
             if (fromShares < shares) {
-                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values for privacy
+                revert ERC20InsufficientBalance(address(from), uint256(fromShares), uint256(shares));
             }
             unchecked {
                 _shares[from] = fromShares - shares;
@@ -307,7 +309,7 @@ contract USDY is SERC20 {
             }
         }
 
-        emit Transfer(address(from), address(to), uint256(0)); // Zero value for privacy
+        emit Transfer(address(from), address(to), uint256(value));
 
         _afterTokenTransfer(from, to, value);
     }

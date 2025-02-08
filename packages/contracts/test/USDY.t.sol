@@ -47,7 +47,7 @@ contract USDYTest is Test {
 
         // Initial mint
         vm.prank(minter);
-        token.mint(user1, INITIAL_MINT);
+        token.mint(saddress(user1), suint256(INITIAL_MINT));
     }
 
     // Basic Functionality Tests
@@ -109,42 +109,127 @@ contract USDYTest is Test {
 
     // Minting and Burning Tests
 
-    function test_Minting() public {
-        uint256 mintAmount = 100 * 1e18;
-        uint256 initialSupply = token.totalSupply();
+    function test_MintAndBurn() public {
+        uint256 amount = 100e18;
         
+        // Test minting
         vm.prank(minter);
-        token.mint(user2, mintAmount);
-
-        assertEq(token.totalSupply(), initialSupply + mintAmount);
-        vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), mintAmount);
-    }
-
-    function test_OnlyMinterCanMint() public {
-        address caller = user1;
-        vm.prank(caller);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), caller));
-        token.mint(user2, 100 * 1e18);
-    }
-
-    function test_Burning() public {
-        uint256 burnAmount = 100 * 1e18;
-        uint256 initialSupply = token.totalSupply();
+        token.mint(saddress(user1), suint256(amount));
         
-        vm.prank(burner);
-        token.burn(user1, burnAmount);
-
-        assertEq(token.totalSupply(), initialSupply - burnAmount);
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - burnAmount);
+        assertEq(token.balanceOf(saddress(user1)), amount);
+        assertEq(token.totalSupply(), amount);
+        
+        // Test burning
+        vm.prank(burner);
+        token.burn(saddress(user1), suint256(amount));
+        
+        vm.prank(user1);
+        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - amount);
+        assertEq(token.totalSupply(), INITIAL_MINT - amount);
     }
 
-    function test_OnlyBurnerCanBurn() public {
-        address caller = user1;
-        vm.prank(caller);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), caller));
-        token.burn(user1, 100 * 1e18);
+    function test_UnshieldedMintAndBurn() public {
+        uint256 amount = 100e18;
+        
+        // Test unshielded minting
+        vm.prank(minter);
+        token.mintUnshielded(user1, amount);
+        
+        vm.prank(user1);
+        assertEq(token.balanceOf(saddress(user1)), amount);
+        assertEq(token.totalSupply(), amount);
+        
+        // Test unshielded burning
+        vm.prank(burner);
+        token.burnUnshielded(user1, amount);
+        
+        vm.prank(user1);
+        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - amount);
+        assertEq(token.totalSupply(), INITIAL_MINT - amount);
+    }
+
+    function test_MintWithoutRole() public {
+        uint256 amount = 100e18;
+        
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), user1));
+        vm.prank(user1);
+        token.mint(saddress(user1), suint256(amount));
+
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), user1));
+        vm.prank(user1);
+        token.mintUnshielded(user1, amount);
+    }
+
+    function test_BurnWithoutRole() public {
+        uint256 amount = 100e18;
+        
+        // First mint some tokens
+        vm.prank(minter);
+        token.mint(saddress(user1), suint256(amount));
+        
+        // Try to burn without role
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), user1));
+        vm.prank(user1);
+        token.burn(saddress(user1), suint256(amount));
+
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), user1));
+        vm.prank(user1);
+        token.burnUnshielded(user1, amount);
+    }
+
+    function test_MintWhenPaused() public {
+        uint256 amount = 100e18;
+        
+        // Pause the contract
+        vm.prank(pauser);
+        token.pause();
+        
+        // Try to mint when paused
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        vm.prank(minter);
+        token.mint(saddress(user1), suint256(amount));
+
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        vm.prank(minter);
+        token.mintUnshielded(user1, amount);
+    }
+
+    function test_BurnWhenPaused() public {
+        uint256 amount = 100e18;
+        
+        // First mint some tokens
+        vm.prank(minter);
+        token.mint(saddress(user1), suint256(amount));
+        
+        // Pause the contract
+        vm.prank(pauser);
+        token.pause();
+        
+        // Try to burn when paused
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        vm.prank(burner);
+        token.burn(saddress(user1), suint256(amount));
+
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        vm.prank(burner);
+        token.burnUnshielded(user1, amount);
+    }
+
+    function test_PausedTransfers() public {
+        // Pause the contract
+        vm.prank(pauser);
+        token.pause();
+
+        // Try to mint
+        vm.prank(minter);
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        token.mint(saddress(user1), suint256(100 * 1e18));
+
+        // Try to burn
+        vm.prank(burner);
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
+        token.burn(saddress(user1), suint256(100 * 1e18));
     }
 
     // Yield/Reward Multiplier Tests
@@ -270,11 +355,11 @@ contract USDYTest is Test {
 
         vm.prank(minter);
         vm.expectRevert(USDY.TransferWhilePaused.selector);
-        token.mint(user2, 100 * 1e18);
+        token.mint(saddress(user1), suint256(100 * 1e18));
 
         vm.prank(burner);
         vm.expectRevert(USDY.TransferWhilePaused.selector);
-        token.burn(user1, 100 * 1e18);
+        token.burn(saddress(user1), suint256(100 * 1e18));
     }
 
     function test_YieldAccumulationWithTransfers() public {

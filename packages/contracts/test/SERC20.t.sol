@@ -8,11 +8,11 @@ import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
 contract TestSERC20 is SERC20 {
     constructor(string memory name, string memory symbol) SERC20(name, symbol) {}
 
-    function mint(address account, uint256 value) public {
+    function mint(saddress account, suint256 value) public {
         _mint(account, value);
     }
 
-    function burn(address account, uint256 value) public {
+    function burn(saddress account, suint256 value) public {
         _burn(account, value);
     }
 }
@@ -24,11 +24,11 @@ contract TestSERC20Decimals is SERC20 {
         _decimals = decimals_;
     }
 
-    function mint(address account, uint256 value) public {
+    function mint(saddress account, suint256 value) public {
         _mint(account, value);
     }
 
-    function burn(address account, uint256 value) public {
+    function burn(saddress account, suint256 value) public {
         _burn(account, value);
     }
 
@@ -54,7 +54,7 @@ contract SERC20Test is Test {
         initialSupply = 100 * 10**18; // 100 tokens with 18 decimals
 
         token = new TestSERC20("My Token", "MTKN");
-        token.mint(initialHolder, initialSupply);
+        token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
     function test_Metadata() public view {
@@ -151,17 +151,17 @@ contract SERC20Test is Test {
 
     function test_MintToZeroAddress() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
-        token.mint(address(0), 1);
+        token.mint(saddress(address(0)), suint256(1));
     }
 
     function test_BurnFromZeroAddressReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSender.selector, address(0)));
-        token.burn(address(0), 100);
+        token.burn(saddress(address(0)), suint256(100));
     }
 
     function test_BurnExceedingBalanceReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
-        token.burn(initialHolder, initialSupply + 1);
+        token.burn(saddress(initialHolder), suint256(initialSupply + 1));
     }
 
     // Transfer Events Tests
@@ -184,7 +184,7 @@ contract SERC20Test is Test {
         vm.expectEmit(true, true, false, true);
         emit Transfer(address(0), address(0), 0);
         
-        token.mint(recipient, mintAmount);
+        token.mint(saddress(recipient), suint256(mintAmount));
     }
 
     function test_BurnEmitsTransferEvent() public {
@@ -194,7 +194,7 @@ contract SERC20Test is Test {
         vm.expectEmit(true, true, false, true);
         emit Transfer(initialHolder, address(0), 0);
         
-        token.burn(initialHolder, burnAmount);
+        token.burn(saddress(initialHolder), suint256(burnAmount));
     }
 
     function test_TransferFromEmitsTransferEvent() public {
@@ -406,7 +406,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_MintWithSixDecimals() public {
         uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
-        token6.mint(holder, amount);
+        token6.mint(saddress(holder), suint256(amount));
 
         vm.prank(holder);
         assertEq(token6.balanceOf(saddress(holder)), amount);
@@ -415,7 +415,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_MintWithZeroDecimals() public {
         uint256 amount = 100; // 100 tokens with 0 decimals
-        token0.mint(holder, amount);
+        token0.mint(saddress(holder), suint256(amount));
 
         vm.prank(holder);
         assertEq(token0.balanceOf(saddress(holder)), amount);
@@ -424,7 +424,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_TransferWithSixDecimals() public {
         uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
-        token6.mint(holder, amount);
+        token6.mint(saddress(holder), suint256(amount));
 
         vm.prank(holder);
         token6.transfer(saddress(recipient), suint256(50 * 10**6));
@@ -438,7 +438,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_TransferWithZeroDecimals() public {
         uint256 amount = 100; // 100 tokens with 0 decimals
-        token0.mint(holder, amount);
+        token0.mint(saddress(holder), suint256(amount));
 
         vm.prank(holder);
         token0.transfer(saddress(recipient), suint256(50));
@@ -452,7 +452,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_SmallestUnitTransferSixDecimals() public {
         uint256 amount = 100 * 10**6; // 100 tokens with 6 decimals
-        token6.mint(holder, amount);
+        token6.mint(saddress(holder), suint256(amount));
 
         // Transfer 1 unit (0.000001 token)
         vm.prank(holder);
@@ -467,7 +467,7 @@ contract SERC20DecimalsTest is Test {
 
     function test_SmallestUnitTransferZeroDecimals() public {
         uint256 amount = 100; // 100 tokens with 0 decimals
-        token0.mint(holder, amount);
+        token0.mint(saddress(holder), suint256(amount));
 
         // Transfer 1 unit (1 whole token for 0 decimals)
         vm.prank(holder);
@@ -483,26 +483,26 @@ contract SERC20DecimalsTest is Test {
     function test_MaxSupplyWithDifferentDecimals() public {
         // Test max supply with 6 decimals
         uint256 maxAmount6 = type(uint256).max;
-        token6.mint(holder, maxAmount6);
+        token6.mint(saddress(holder), suint256(maxAmount6));
         assertEq(token6.totalSupply(), maxAmount6);
 
         // Test max supply with 0 decimals
         uint256 maxAmount0 = type(uint256).max;
-        token0.mint(holder, maxAmount0);
+        token0.mint(saddress(holder), suint256(maxAmount0));
         assertEq(token0.totalSupply(), maxAmount0);
     }
 
     function test_BurnWithDifferentDecimals() public {
         // Test burning with 6 decimals
         uint256 amount6 = 100 * 10**6;
-        token6.mint(holder, amount6);
-        token6.burn(holder, 50 * 10**6);
+        token6.mint(saddress(holder), suint256(amount6));
+        token6.burn(saddress(holder), suint256(50 * 10**6));
         assertEq(token6.totalSupply(), 50 * 10**6);
 
         // Test burning with 0 decimals
         uint256 amount0 = 100;
-        token0.mint(holder, amount0);
-        token0.burn(holder, 50);
+        token0.mint(saddress(holder), suint256(amount0));
+        token0.burn(saddress(holder), suint256(50));
         assertEq(token0.totalSupply(), 50);
     }
 }
@@ -523,7 +523,7 @@ contract SERC20AllowanceTest is Test {
         initialSupply = 100 * 10**18;
 
         token = new TestSERC20("My Token", "MTKN");
-        token.mint(initialHolder, initialSupply);
+        token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
     // Basic Functionality Tests
@@ -819,29 +819,29 @@ contract SERC20MintBurnTest is Test {
 
     function setUp() public {
         token = new TestSERC20("Test Token", "TST");
-        token.mint(initialHolder, initialSupply);
+        token.mint(saddress(initialHolder), suint256(initialSupply));
     }
 
     function test_MintToZeroAddressReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
-        token.mint(address(0), 100);
+        token.mint(saddress(address(0)), suint256(1));
     }
 
     function test_BurnFromZeroAddressReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSender.selector, address(0)));
-        token.burn(address(0), 100);
+        token.burn(saddress(address(0)), suint256(100));
     }
 
     function test_BurnExceedingBalanceReverts() public {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, initialHolder, 0, 0));
-        token.burn(initialHolder, initialSupply + 1);
+        token.burn(saddress(initialHolder), suint256(initialSupply + 1));
     }
 
     function test_MintIncrementsTotalSupply() public {
         uint256 amount = 50;
         uint256 previousSupply = token.totalSupply();
         
-        token.mint(recipient, amount);
+        token.mint(saddress(recipient), suint256(amount));
         assertEq(token.totalSupply(), previousSupply + amount);
     }
 
@@ -849,7 +849,7 @@ contract SERC20MintBurnTest is Test {
         uint256 amount = 50;
         uint256 previousSupply = token.totalSupply();
         
-        token.burn(initialHolder, amount);
+        token.burn(saddress(initialHolder), suint256(amount));
         assertEq(token.totalSupply(), previousSupply - amount);
     }
 
@@ -860,7 +860,7 @@ contract SERC20MintBurnTest is Test {
         vm.prank(initialHolder);
         uint256 previousBalance = token.balanceOf(saddress(initialHolder));
         
-        token.mint(initialHolder, amount);
+        token.mint(saddress(initialHolder), suint256(amount));
         
         // Need to be the account owner to see the updated balance
         vm.prank(initialHolder);
@@ -868,16 +868,17 @@ contract SERC20MintBurnTest is Test {
     }
 
     function test_BurnEntireBalance() public {
-        token.burn(initialHolder, initialSupply);
+        token.burn(saddress(initialHolder), suint256(initialSupply));
         assertEq(token.balanceOf(saddress(initialHolder)), 0);
     }
 
     function test_MintMaxUintValue() public {
+        uint256 remainingSupply = type(uint256).max - token.totalSupply();
         // Should not revert
-        token.mint(recipient, type(uint256).max - token.totalSupply());
+        token.mint(saddress(recipient), suint256(remainingSupply));
         
         // Should revert on next mint due to overflow
         vm.expectRevert();
-        token.mint(recipient, 1);
+        token.mint(saddress(recipient), suint256(1));
     }
 }

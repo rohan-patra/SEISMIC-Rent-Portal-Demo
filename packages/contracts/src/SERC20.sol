@@ -275,26 +275,26 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      *
      * NOTE: This function is not virtual, {_update} should be overridden instead.
      */
-    function _mint(address account, uint256 value) internal {
-        if (account == address(0)) {
+    function _mint(saddress account, suint256 value) internal {
+        if (account == saddress(address(0))) {
             revert ERC20InvalidReceiver(address(0));
         }
-        _update(saddress(address(0)), saddress(account), suint256(value));
+        _update(saddress(address(0)), account, value);
     }
 
     /**
-     * @dev Destroys a `value` amount of tokens from `account`, lowering the total supply.
+     * @dev Destroys a shielded `value` amount of tokens from a shielded `account`, lowering the total supply.
      * Relies on the `_update` mechanism.
      *
      * Emits a {Transfer} event with `to` set to the zero address.
      *
      * NOTE: This function is not virtual, {_update} should be overridden instead
      */
-    function _burn(address account, uint256 value) internal {
-        if (account == address(0)) {
+    function _burn(saddress account, suint256 value) internal {
+        if (account == saddress(address(0))) {
             revert ERC20InvalidSender(address(0));
         }
-        _update(saddress(account), saddress(address(0)), suint256(value));
+        _update(account, saddress(address(0)), value);
     }
 
     /**

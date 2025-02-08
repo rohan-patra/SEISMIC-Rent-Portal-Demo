@@ -106,7 +106,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * Returns actual allowance if caller is either the owner or the spender,
      * returns 0 otherwise to maintain privacy.
      */
-    function allowance(saddress owner, saddress spender) public view returns (uint256) {
+    function allowance(saddress owner, saddress spender) public virtual view returns (uint256) {
         saddress caller = saddress(_msgSender());
         if (caller == owner || caller == spender) {
             return uint256(_allowances[saddress(owner)][saddress(spender)]);

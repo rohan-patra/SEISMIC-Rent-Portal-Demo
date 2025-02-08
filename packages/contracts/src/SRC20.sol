@@ -2,19 +2,19 @@
 
 pragma solidity ^0.8.20;
 
-import {SIERC20} from "./SIERC20.sol";
-import {SIERC20Metadata} from "./SIERC20Metadata.sol";
-import {Context} from "../openzeppelin/utils/Context.sol";
-import {IERC20Errors} from "../openzeppelin/interfaces/draft-IERC6093.sol";
+import {ISRC20} from "./ISRC20.sol";
+import {ISRC20Metadata} from "./ISRC20Metadata.sol";
+import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
+import {IERC20Errors} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
+
+error UnauthorizedView();
 
 /**
- * @dev Implementation of the {SIERC20} interface with privacy protections using shielded types.
+ * @dev Implementation of the {ISRC20} interface with privacy protections using shielded types.
  * Public view functions that would leak privacy are implemented as no-ops while maintaining interface compatibility.
  * Total supply remains public while individual balances and transfers are private.
- * Currently, this implementation is fully compliant with the ERC-20 standard, meaning that transfer recipients are NOT shielded/private.
- * Recipient addresses appear in the Transfer event as unshielded addresses.
  */
-abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
+abstract contract SRC20 is Context, ISRC20, ISRC20Metadata, IERC20Errors {
     mapping(saddress account => suint256) private _balances;
     mapping(saddress account => mapping(saddress spender => suint256)) private _allowances;
 
@@ -60,29 +60,39 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      *
      * NOTE: This information is only used for _display_ purposes: it in
      * no way affects any of the arithmetic of the contract, including
-     * {SIERC20-balanceOf} and {SIERC20-transfer}.
+     * {ISRC20-balanceOf} and {ISRC20-transfer}.
      */
     function decimals() public view virtual override returns (uint8) {
         return 18;
     }
 
     /**
-     * @dev See {SIERC20-totalSupply}.
+     * @dev See {ISRC20-totalSupply}.
      */
     function totalSupply() public view virtual returns (uint256) {
         return _totalSupply;
     }
 
     /**
-     * @dev See {SIERC20-balanceOf}.
-     * Returns the balance of the caller if `account` matches the caller's address,
-     * returns 0 otherwise to maintain privacy.
+     * @dev See {ISRC20-balanceOf}.
+     * Reverts if caller is not the account owner to maintain privacy.
      */
     function balanceOf(saddress account) public view virtual override returns (uint256) {
         if (account == saddress(_msgSender())) {
             return uint256(_balances[account]);
         }
-        return 0;
+        revert UnauthorizedView();
+    }
+
+    /**
+     * @dev Safe version of balanceOf that returns success boolean along with balance.
+     * Returns (true, balance) if caller is the account owner, (false, 0) otherwise.
+     */
+    function safeBalanceOf(saddress account) public view returns (bool, uint256) {
+        if (account == saddress(_msgSender())) {
+            return (true, uint256(_balances[account]));
+        }
+        return (false, 0);
     }
 
     /**
@@ -102,16 +112,27 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
     }
 
     /**
-     * @dev See {SIERC20-allowance}.
-     * Returns actual allowance if caller is either the owner or the spender,
-     * returns 0 otherwise to maintain privacy.
+     * @dev See {ISRC20-allowance}.
+     * Reverts if caller is neither the owner nor the spender to maintain privacy.
      */
     function allowance(saddress owner, saddress spender) public virtual view returns (uint256) {
         saddress caller = saddress(_msgSender());
         if (caller == owner || caller == spender) {
             return uint256(_allowances[saddress(owner)][saddress(spender)]);
         }
-        return 0;
+        revert UnauthorizedView();
+    }
+
+    /**
+     * @dev Safe version of allowance that returns success boolean along with allowance.
+     * Returns (true, allowance) if caller is owner or spender, (false, 0) otherwise.
+     */
+    function safeAllowance(saddress owner, saddress spender) public view returns (bool, uint256) {
+        saddress caller = saddress(_msgSender());
+        if (caller == owner || caller == spender) {
+            return (true, uint256(_allowances[saddress(owner)][saddress(spender)]));
+        }
+        return (false, 0);
     }
 
     /**
@@ -119,6 +140,11 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      *
      * NOTE: If `value` is the maximum `suint256`, the allowance is not updated on
      * `transferFrom`. This is semantically equivalent to an infinite approval.
+     *
+     * WARNING: Changing an allowance with this method can have security implications. When changing an approved
+     * allowance to a specific value, a race condition may occur if another transaction is submitted before
+     * the original allowance change is confirmed. To safely adjust allowances, use {increaseAllowance} and
+     * {decreaseAllowance} which provide atomic operations protected against such race conditions.
      *
      * Requirements:
      *
@@ -160,7 +186,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * @dev Atomically increases the allowance granted to a shielded `spender` by a shielded `addedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {SIERC20-approve}.
+     * problems described in {ISRC20-approve}.
      *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.
@@ -183,7 +209,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * @dev Atomically decreases the allowance granted to a shielded `spender` by a shielded `subtractedValue`.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {SIERC20-approve}.
+     * problems described in {ISRC20-approve}.
      *
      * The operation is atomic - it directly accesses and modifies the underlying
      * shielded allowance mapping to prevent race conditions.
@@ -233,7 +259,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * (or `to`) is the zero address. All customizations to transfers, mints, and burns should be done by overriding
      * this function.
      *
-     * Emits a {Transfer} event.
+     * Calls `emitTransferEvent`.
      */
     function _update(saddress from, saddress to, suint256 value) internal virtual {
         _beforeTokenTransfer(from, to, value);
@@ -244,7 +270,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
         } else {
             suint256 fromBalance = _balances[from];
             if (fromBalance < value) {
-                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0)); // Zero values to protect privacy
+                revert ERC20InsufficientBalance(address(from), uint256(0), uint256(0));
             }
             unchecked {
                 _balances[from] = fromBalance - value;
@@ -262,7 +288,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
             }
         }
 
-        emit Transfer(address(from), address(0), uint256(0)); // Zero value to protect privacy
+        emitTransfer(address(from), address(to), uint256(value));
 
         _afterTokenTransfer(from, to, value);
     }
@@ -303,38 +329,14 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * This internal function is equivalent to `approve`, and can be used to
      * e.g. set automatic allowances for certain subsystems, etc.
      *
-     * Emits an {Approval} event.
+     * Calls emitApproval which is a no-op by default for privacy.
      *
      * Requirements:
      *
      * - `owner` cannot be the zero address.
      * - `spender` cannot be the zero address.
-     *
-     * Overrides to this logic should be done to the variant with an additional `bool emitEvent` argument.
      */
-    function _approve(saddress owner, saddress spender, suint256 value) internal {
-        _approve(owner, spender, value, sbool(true));
-    }
-
-    /**
-     * @dev Variant of {_approve} with an optional flag to enable or disable the {Approval} event.
-     *
-     * By default (when calling {_approve}) the flag is set to true. On the other hand, approval changes made by
-     * `_spendAllowance` during the `transferFrom` operation set the flag to false. This saves gas by not emitting any
-     * `Approval` event during `transferFrom` operations.
-     *
-     * Anyone who wishes to continue emitting `Approval` events on the`transferFrom` operation can force the flag to
-     * true using the following override:
-     *
-     * ```solidity
-     * function _approve(address owner, address spender, uint256 value, bool) internal virtual override {
-     *     super._approve(owner, spender, value, true);
-     * }
-     * ```
-     *
-     * Requirements are the same as {_approve}.
-     */
-    function _approve(saddress owner, saddress spender, suint256 value, sbool emitEvent) internal virtual {
+    function _approve(saddress owner, saddress spender, suint256 value) internal virtual {
         if (owner == saddress(address(0))) {
             revert ERC20InvalidApprover(address(0));
         }
@@ -342,9 +344,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
             revert ERC20InvalidSpender(address(0));
         }
         _allowances[owner][spender] = value;
-        if (emitEvent) {
-            // emit Approval(address(owner), address(spender), uint256(0)); // Zero value to protect privacy
-        }
+        emitApproval(address(owner), address(spender), uint256(value));
     }
 
     /**
@@ -362,7 +362,7 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
                 revert ERC20InsufficientAllowance(address(spender), uint256(0), uint256(0)); // Zero values to protect privacy
             }
             unchecked {
-                _approve(owner, spender, currentAllowance - value, sbool(false));
+                _approve(owner, spender, currentAllowance - value);
             }
         }
     }
@@ -402,4 +402,20 @@ abstract contract SERC20 is Context, SIERC20, SIERC20Metadata, IERC20Errors {
      * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      */
     function _afterTokenTransfer(saddress from, saddress to, suint256 value) internal virtual {}
+
+    /**
+     * @dev Implementation of emitTransfer. No-op by default for privacy.
+     * Can be overridden to implement custom event emission behavior.
+     */
+    function emitTransfer(address from, address to, uint256 value) public virtual override {
+        // No-op by default
+    }
+
+    /**
+     * @dev Implementation of emitApproval. No-op by default for privacy.
+     * Can be overridden to implement custom event emission behavior.
+     */
+    function emitApproval(address owner, address spender, uint256 value) public virtual override {
+        // No-op by default
+    }
 }

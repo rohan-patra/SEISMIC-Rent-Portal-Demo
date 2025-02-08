@@ -180,8 +180,12 @@ contract USDYApproveTest is Test {
 
         // Check allowances are set correctly
         vm.prank(owner);
-        assertEq(token.allowance(saddress(owner), saddress(spender)), amount1);
-        assertEq(token.allowance(saddress(owner), saddress(spender2)), amount2);
+        uint256 allowance1 = token.allowance(saddress(owner), saddress(spender));
+        assertEq(allowance1, amount1, "First allowance mismatch");
+
+        vm.prank(owner);
+        uint256 allowance2 = token.allowance(saddress(owner), saddress(spender2));
+        assertEq(allowance2, amount2, "Second allowance mismatch");
     }
 
     function test_ApproveMaxUint() public {

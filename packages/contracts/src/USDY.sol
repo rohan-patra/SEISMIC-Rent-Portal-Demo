@@ -20,6 +20,9 @@ contract USDY is SERC20 {
     mapping(saddress => suint256) private _shares;
     suint256 private _totalShares;
 
+    // Allowances mapping for each token owner => spender => amount
+    mapping(saddress => mapping(saddress => suint256)) private _allowances;
+
     // Access control roles
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -273,7 +276,7 @@ contract USDY is SERC20 {
             // Burning
             suint256 fromShares = _shares[from];
             if (fromShares < shares) {
-                revert ERC20InsufficientBalance(address(from), uint256(fromShares), uint256(shares));
+                revert ERC20InsufficientBalance(address(from), uint256(convertToTokens(fromShares)), uint256(value));
             }
             unchecked {
                 _shares[from] = fromShares - shares;
@@ -283,7 +286,7 @@ contract USDY is SERC20 {
             // Transfer
             suint256 fromShares = _shares[from];
             if (fromShares < shares) {
-                revert ERC20InsufficientBalance(address(from), uint256(fromShares), uint256(shares));
+                revert ERC20InsufficientBalance(address(from), uint256(convertToTokens(fromShares)), uint256(value));
             }
             unchecked {
                 _shares[from] = fromShares - shares;
@@ -313,45 +316,121 @@ contract USDY is SERC20 {
 
     /**
      * @notice Transfers a specified number of tokens from the caller's address to the recipient.
-     * @dev Converts token amounts to shares for internal accounting while maintaining
-     * the appearance of token-based transfers to users.
+     * @dev Uses _update for share-based accounting while maintaining token-based interface
      * @param to The shielded address to which tokens will be transferred.
      * @param amount The shielded number of tokens to transfer.
      * @return A boolean value indicating whether the operation succeeded.
      */
-    function transfer(saddress to, suint256 amount) public virtual override whenNotPaused returns (bool) {
-        address owner = _msgSender();
+    function transfer(saddress to, suint256 amount) public override whenNotPaused returns (bool) {
+        if (to == saddress(address(0))) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+        _update(saddress(_msgSender()), to, amount);
+        return true;
+    }
+
+    /**
+     * @notice Transfers tokens from one address to another using the allowance mechanism
+     * @dev Uses _update for share-based accounting while maintaining token-based interface
+     * @param from The shielded address to transfer from
+     * @param to The shielded address to transfer to
+     * @param amount The shielded amount to transfer
+     * @return A boolean value indicating whether the operation succeeded
+     */
+    function transferFrom(saddress from, saddress to, suint256 amount) public override whenNotPaused returns (bool) {
+        address spender = _msgSender();
         
+        if (from == saddress(address(0))) {
+            revert ERC20InvalidSender(address(0));
+        }
         if (to == saddress(address(0))) {
             revert ERC20InvalidReceiver(address(0));
         }
 
-        _beforeTokenTransfer(saddress(owner), to, amount);
-
-        suint256 shares = convertToShares(amount);
-        suint256 fromShares = _shares[saddress(owner)];
-
-        if (fromShares < shares) {
-            revert ERC20InsufficientBalance(owner, uint256(fromShares), uint256(shares));
+        suint256 currentAllowance = _allowances[from][saddress(spender)];
+        if (currentAllowance != type(suint256).max) {
+            if (currentAllowance < amount) {
+                revert ERC20InsufficientAllowance(spender, uint256(currentAllowance), uint256(amount));
+            }
+            unchecked {
+                _allowances[from][saddress(spender)] = currentAllowance - amount;
+            }
         }
 
-        unchecked {
-            _shares[saddress(owner)] = fromShares - shares;
-            // Overflow not possible: the sum of all shares is capped by totalShares
-            _shares[to] += shares;
+        _update(from, to, amount);
+        return true;
+    }
+
+    /**
+     * @notice Returns the remaining number of tokens that `spender` will be allowed to spend
+     * on behalf of `owner`
+     * @param owner The address of the account owning tokens
+     * @param spender The address of the account able to transfer the tokens
+     * @return The number of remaining tokens allowed to be spent
+     */
+    function allowance(saddress owner, saddress spender) public view override returns (uint256) {
+        return uint256(_allowances[owner][spender]);
+    }
+
+    /**
+     * @notice Sets `amount` as the allowance of `spender` over the caller's tokens
+     * @param spender The address which will spend the funds
+     * @param amount The amount of tokens to be spent
+     * @return A boolean value indicating whether the operation succeeded
+     */
+    function approve(saddress spender, suint256 amount) public override whenNotPaused returns (bool) {
+        address owner = _msgSender();
+        if (spender == saddress(address(0))) {
+            revert ERC20InvalidSpender(address(0));
         }
 
-        emit Transfer(owner, address(to), uint256(amount));
-
-        _afterTokenTransfer(saddress(owner), to, amount);
+        _allowances[saddress(owner)][spender] = amount;
+        emit Approval(owner, address(spender), uint256(amount));
 
         return true;
     }
 
     /**
-     * @notice Override of the transferFrom function to add pause functionality
+     * @notice Atomically increases the allowance granted to `spender` by the caller
+     * @param spender The address which will spend the funds
+     * @param addedValue The amount of tokens to increase the allowance by
+     * @return A boolean value indicating whether the operation succeeded
      */
-    function transferFrom(saddress from, saddress to, suint256 amount) public override returns (bool) {
-        return super.transferFrom(from, to, amount);
+    function increaseAllowance(saddress spender, suint256 addedValue) public virtual override whenNotPaused returns (bool) {
+        address owner = _msgSender();
+        if (spender == saddress(address(0))) {
+            revert ERC20InvalidSpender(address(0));
+        }
+
+        unchecked {
+            _allowances[saddress(owner)][spender] += addedValue;
+        }
+        emit Approval(owner, address(spender), uint256(_allowances[saddress(owner)][spender]));
+
+        return true;
+    }
+
+    /**
+     * @notice Atomically decreases the allowance granted to `spender` by the caller
+     * @param spender The address which will spend the funds
+     * @param subtractedValue The amount of tokens to decrease the allowance by
+     * @return A boolean value indicating whether the operation succeeded
+     */
+    function decreaseAllowance(saddress spender, suint256 subtractedValue) public virtual override whenNotPaused returns (bool) {
+        address owner = _msgSender();
+        if (spender == saddress(address(0))) {
+            revert ERC20InvalidSpender(address(0));
+        }
+
+        suint256 currentAllowance = _allowances[saddress(owner)][spender];
+        if (currentAllowance < subtractedValue) {
+            revert ERC20InsufficientAllowance(address(spender), uint256(currentAllowance), uint256(subtractedValue));
+        }
+        unchecked {
+            _allowances[saddress(owner)][spender] = currentAllowance - subtractedValue;
+        }
+        emit Approval(owner, address(spender), uint256(_allowances[saddress(owner)][spender]));
+
+        return true;
     }
 }

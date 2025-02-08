@@ -55,7 +55,6 @@ contract USDYAllowanceTest is Test {
 
         // Calculate shares needed for transfer with yield
         uint256 transferAmount = 50 * 1e18;
-        uint256 expectedShares = (transferAmount * BASE) / (BASE + yieldIncrement);
 
         // Transfer using allowance
         vm.prank(spender);
@@ -67,7 +66,8 @@ contract USDYAllowanceTest is Test {
 
         // Verify recipient received correct amount with yield
         vm.prank(recipient);
-        assertEq(token.balanceOf(saddress(recipient)), transferAmount);
+        // use 1 wei tolerance to account for integer rounding errors / precision loss
+        assertApproxEqAbs(token.balanceOf(saddress(recipient)), transferAmount, 1);
     }
 
     function test_AllowancePrivacyWithYield() public {

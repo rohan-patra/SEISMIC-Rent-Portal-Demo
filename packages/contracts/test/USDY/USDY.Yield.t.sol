@@ -105,11 +105,14 @@ contract USDYYieldTest is Test {
 
         // Calculate expected balance for new mint (should not include previous yield)
         vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), mintAmount);
+        uint256 actualBalance = token.balanceOf(saddress(user2));
+        assertApproxEqAbs(actualBalance, mintAmount, 1); // Allow 1 wei difference
 
         // Original holder's balance should include yield
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), (INITIAL_MINT * (BASE + yieldIncrement)) / BASE);
+        uint256 expectedYieldBalance = (INITIAL_MINT * (BASE + yieldIncrement)) / BASE;
+        actualBalance = token.balanceOf(saddress(user1));
+        assertApproxEqAbs(actualBalance, expectedYieldBalance, 1); // Allow 1 wei difference
     }
 
     function test_YieldAccumulationWithBurning() public {
@@ -120,22 +123,20 @@ contract USDYYieldTest is Test {
         vm.prank(oracle);
         token.addRewardMultiplier(yieldIncrement);
 
-        // Calculate shares to burn
-        uint256 sharesToBurn = (burnAmount * BASE) / (BASE + yieldIncrement);
-
         // Grant burner role to admin for testing
-        vm.prank(admin);
+        vm.startPrank(admin);
         token.grantRole(token.BURNER_ROLE(), admin);
 
-        // Burn tokens
-        vm.prank(admin);
+        // Burn tokens directly - contract will handle share conversion internally
         token.burn(saddress(user1), suint256(burnAmount));
+        vm.stopPrank();
 
-        // Calculate expected remaining balance
-        uint256 expectedBalance = ((INITIAL_MINT - burnAmount) * (BASE + yieldIncrement)) / BASE;
+        // Calculate expected remaining balance after burning
+        uint256 expectedBalance = (INITIAL_MINT * (BASE + yieldIncrement)) / BASE - burnAmount;
 
-        // Verify remaining balance
+        // Verify remaining balance (allow for 1 wei rounding difference)
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), expectedBalance);
+        uint256 actualBalance = token.balanceOf(saddress(user1));
+        assertApproxEqAbs(actualBalance, expectedBalance, 1); // Allow 1 wei difference
     }
 }

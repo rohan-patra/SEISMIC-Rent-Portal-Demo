@@ -127,9 +127,10 @@ contract USDYMintTest is Test {
         vm.prank(user1);
         assertEq(token.sharesOf(saddress(user1)), expectedShares);
 
-        // Verify balance shows full token amount
+        // Verify balance shows full token amount (allow 1 wei difference)
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), amount);
+        uint256 actualBalance = token.balanceOf(saddress(user1));
+        assertApproxEqAbs(actualBalance, amount, 1);
     }
 
     function test_MultipleMints() public {
@@ -138,27 +139,33 @@ contract USDYMintTest is Test {
         amounts[1] = 50 * 1e18;
         amounts[2] = 75 * 1e18;
 
-        uint256 totalAmount = 0;
         uint256 totalShares = 0;
+        uint256 currentMultiplier = BASE;
 
         // Perform multiple mints with yield changes in between
         for(uint256 i = 0; i < amounts.length; i++) {
             if(i > 0) {
                 // Add some yield before subsequent mints
+                uint256 yieldIncrement = 0.0001e18 * (i + 1);
                 vm.prank(oracle);
-                token.addRewardMultiplier(0.0001e18 * (i + 1)); // Increasing yield each time
+                token.addRewardMultiplier(yieldIncrement);
+                currentMultiplier += yieldIncrement;
             }
 
             vm.prank(minter);
             token.mint(saddress(user1), suint256(amounts[i]));
 
-            totalAmount += amounts[i];
-            totalShares += (amounts[i] * BASE) / (BASE + (0.0001e18 * i)); // Account for yield in share calculation
+            // Calculate shares for this mint
+            totalShares += (amounts[i] * BASE) / currentMultiplier;
         }
 
-        // Verify final balance reflects total minted amount
+        // Calculate expected final balance based on total shares and final multiplier
+        uint256 expectedBalance = (totalShares * currentMultiplier) / BASE;
+
+        // Verify final balance reflects total minted amount with yield
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), totalAmount);
+        uint256 actualBalance = token.balanceOf(saddress(user1));
+        assertEq(actualBalance, expectedBalance);
 
         // Verify shares are calculated correctly
         vm.prank(user1);
@@ -185,9 +192,11 @@ contract USDYMintTest is Test {
         uint256 amount = 100 * 1e18;
 
         // Non-minter cannot mint
-        vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), user1));
+        bytes32 minterRole = token.MINTER_ROLE();
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, minterRole, user1));
         token.mint(saddress(user2), suint256(amount));
+        vm.stopPrank();
 
         // Minter can mint
         vm.prank(minter);

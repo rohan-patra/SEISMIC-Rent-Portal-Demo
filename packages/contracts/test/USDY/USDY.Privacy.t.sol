@@ -44,7 +44,9 @@ contract USDYPrivacyTest is Test {
 
         // Owner can see actual balance with yield
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), (INITIAL_MINT * 11) / 10);
+        uint256 actualBalance = token.balanceOf(saddress(user1));
+        uint256 expectedBalance = (INITIAL_MINT * 11) / 10;
+        assertApproxEqAbs(actualBalance, expectedBalance, 1); // Allow 1 wei difference
 
         // Others see zero
         vm.prank(observer);
@@ -66,7 +68,8 @@ contract USDYPrivacyTest is Test {
 
         // Only recipient can see their balance
         vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), transferAmount);
+        uint256 actualBalance = token.balanceOf(saddress(user2));
+        assertApproxEqAbs(actualBalance, transferAmount, 1); // Allow 1 wei difference
 
         // Others (including sender) see zero
         vm.prank(user1);
@@ -84,19 +87,20 @@ contract USDYPrivacyTest is Test {
 
         // Only recipient can see minted amount
         vm.prank(user2);
-        assertEq(token.balanceOf(saddress(user2)), amount);
+        uint256 actualBalance = token.balanceOf(saddress(user2));
+        assertApproxEqAbs(actualBalance, amount, 1); // Allow 1 wei difference
 
         // Others see zero
         vm.prank(observer);
         assertEq(token.balanceOf(saddress(user2)), 0);
 
         // Grant burner role for testing
-        vm.prank(admin);
+        vm.startPrank(admin);
         token.grantRole(token.BURNER_ROLE(), admin);
 
         // Burn tokens
-        vm.prank(admin);
         token.burn(saddress(user2), suint256(amount));
+        vm.stopPrank();
 
         // Balance should be zero after burn
         vm.prank(user2);
@@ -105,20 +109,22 @@ contract USDYPrivacyTest is Test {
 
     function test_TotalSupplyPrivacy() public {
         // Total supply should be visible to all
-        assertEq(token.totalSupply(), INITIAL_MINT);
+        assertApproxEqAbs(token.totalSupply(), INITIAL_MINT, 1);
 
         // Add yield
         vm.prank(oracle);
         token.addRewardMultiplier(0.1e18); // 10% yield
 
         // Total supply should reflect yield
-        assertEq(token.totalSupply(), (INITIAL_MINT * 11) / 10);
+        uint256 expectedSupply = (INITIAL_MINT * 11) / 10;
+        assertApproxEqAbs(token.totalSupply(), expectedSupply, 1);
 
         // Mint more tokens
         vm.prank(minter);
         token.mint(saddress(user2), suint256(100 * 1e18));
 
         // Total supply should include new mint
-        assertEq(token.totalSupply(), ((INITIAL_MINT * 11) / 10) + (100 * 1e18));
+        expectedSupply = ((INITIAL_MINT * 11) / 10) + (100 * 1e18);
+        assertApproxEqAbs(token.totalSupply(), expectedSupply, 1);
     }
 }

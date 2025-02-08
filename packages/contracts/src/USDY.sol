@@ -245,6 +245,7 @@ contract USDY is SERC20 {
      * @notice Pauses all token transfers
      */
     function pause() external onlyRole(PAUSE_ROLE) {
+        if (_paused) revert TransferWhilePaused();
         _paused = true;
         emit Paused(_msgSender());
     }
@@ -253,6 +254,7 @@ contract USDY is SERC20 {
      * @notice Unpauses all token transfers
      */
     function unpause() external onlyRole(PAUSE_ROLE) {
+        if (!_paused) revert TransferWhilePaused();
         _paused = false;
         emit Unpaused(_msgSender());
     }

@@ -195,18 +195,21 @@ contract USDYPauseTest is Test {
 
     function test_OnlyPauserCanPauseUnpause() public {
         // Non-pauser cannot pause
-        vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.PAUSE_ROLE(), user1));
+        vm.startPrank(user1);
+        bytes32 pauseRole = token.PAUSE_ROLE();
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, pauseRole, user1));
         token.pause();
+        vm.stopPrank();
 
         // Pause with correct role
         vm.prank(pauser);
         token.pause();
 
         // Non-pauser cannot unpause
-        vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.PAUSE_ROLE(), user1));
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, pauseRole, user1));
         token.unpause();
+        vm.stopPrank();
 
         // Unpause with correct role
         vm.prank(pauser);
@@ -220,14 +223,14 @@ contract USDYPauseTest is Test {
 
         // Try to pause again
         vm.prank(pauser);
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
         token.pause();
     }
 
     function test_CannotUnpauseWhenUnpaused() public {
         // Try to unpause when not paused
         vm.prank(pauser);
-        vm.expectRevert("Pausable: not paused");
+        vm.expectRevert(USDY.TransferWhilePaused.selector);
         token.unpause();
     }
 }

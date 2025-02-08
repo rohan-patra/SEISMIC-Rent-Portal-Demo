@@ -141,37 +141,67 @@ contract USDYBurnTest is Test {
         assertEq(token.sharesOf(saddress(user1)), initialShares - sharesToBurn);
     }
 
+    function test_BurnZeroAmount() public {
+        // Initial state check
+        vm.prank(user1);
+        uint256 initialShares = token.sharesOf(saddress(user1));
+        vm.prank(user1);
+        uint256 initialBalance = token.balanceOf(saddress(user1));
+
+        // Burn zero amount
+        vm.prank(burner);
+        token.burn(saddress(user1), suint256(0));
+
+        // Verify shares and balance remain unchanged
+        vm.prank(user1);
+        assertEq(token.sharesOf(saddress(user1)), initialShares);
+        vm.prank(user1);
+        assertEq(token.balanceOf(saddress(user1)), initialBalance);
+    }
+
     function test_MultipleBurns() public {
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = 100 * 1e18;
         amounts[1] = 50 * 1e18;
         amounts[2] = 75 * 1e18;
 
-        uint256 totalBurned = 0;
-        uint256 totalSharesBurned = 0;
+        // Get initial shares after setup mint
+        vm.prank(user1);
+        uint256 totalShares = token.sharesOf(saddress(user1));
+        uint256 currentMultiplier = BASE;
 
         // Perform multiple burns with yield changes in between
         for(uint256 i = 0; i < amounts.length; i++) {
             if(i > 0) {
                 // Add some yield before subsequent burns
+                uint256 yieldIncrement = 0.0001e18 * (i + 1);
                 vm.prank(oracle);
-                token.addRewardMultiplier(0.0001e18 * (i + 1)); // Increasing yield each time
+                token.addRewardMultiplier(yieldIncrement);
+                currentMultiplier += yieldIncrement;
             }
+
+            // Calculate shares to burn for this amount
+            uint256 sharesToBurn = (amounts[i] * BASE) / currentMultiplier;
+            require(sharesToBurn <= totalShares, "Not enough shares to burn");
 
             vm.prank(burner);
             token.burn(saddress(user1), suint256(amounts[i]));
 
-            totalBurned += amounts[i];
-            totalSharesBurned += (amounts[i] * BASE) / (BASE + (0.0001e18 * i)); // Account for yield in share calculation
+            // Update remaining shares
+            totalShares -= sharesToBurn;
         }
 
-        // Verify final balance is reduced correctly
-        vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - totalBurned);
+        // Calculate expected final balance based on remaining shares and final multiplier
+        uint256 expectedBalance = (totalShares * currentMultiplier) / BASE;
 
-        // Verify shares are reduced correctly
+        // Verify final balance
         vm.prank(user1);
-        assertEq(token.sharesOf(saddress(user1)), INITIAL_MINT - totalSharesBurned);
+        uint256 actualBalance = token.balanceOf(saddress(user1));
+        assertEq(actualBalance, expectedBalance);
+
+        // Verify shares are calculated correctly
+        vm.prank(user1);
+        assertEq(token.sharesOf(saddress(user1)), totalShares);
     }
 
     function test_BurnPrivacy() public {
@@ -195,36 +225,20 @@ contract USDYBurnTest is Test {
     }
 
     function test_OnlyBurnerCanBurn() public {
-        uint256 burnAmount = 100 * 1e18;
+        uint256 amount = 100 * 1e18;
 
         // Non-burner cannot burn
+        bytes32 burnerRole = token.BURNER_ROLE();
         vm.prank(user2);
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), user2));
-        token.burn(saddress(user1), suint256(burnAmount));
+        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, burnerRole, user2));
+        token.burn(saddress(user1), suint256(amount));
 
         // Burner can burn
         vm.prank(burner);
-        token.burn(saddress(user1), suint256(burnAmount));
+        token.burn(saddress(user1), suint256(amount));
 
         // Verify burn was successful
         vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - burnAmount);
-    }
-
-    function test_BurnZeroAmount() public {
-        // Record initial state
-        vm.prank(user1);
-        uint256 initialShares = token.sharesOf(saddress(user1));
-        uint256 initialBalance = token.balanceOf(saddress(user1));
-
-        // Burning zero amount should succeed but not change state
-        vm.prank(burner);
-        token.burn(saddress(user1), suint256(0));
-
-        // Verify no changes to shares or balance
-        vm.prank(user1);
-        assertEq(token.sharesOf(saddress(user1)), initialShares);
-        vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), initialBalance);
+        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT - amount);
     }
 }

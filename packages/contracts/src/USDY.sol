@@ -234,13 +234,13 @@ contract USDY is SERC20 {
      * @notice Override of the transfer function to add pause functionality
      */
     function transfer(saddress to, suint256 amount) public override returns (bool) {
-        return super.transfer(to, convertToShares(amount));
+        return super.transfer(to, amount);
     }
 
     /**
      * @notice Override of the transferFrom function to add pause functionality
      */
     function transferFrom(saddress from, saddress to, suint256 amount) public override returns (bool) {
-        return super.transferFrom(from, to, convertToShares(amount));
+        return super.transferFrom(from, to, amount);
     }
 }

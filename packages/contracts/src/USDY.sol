@@ -312,10 +312,40 @@ contract USDY is SERC20 {
     }
 
     /**
-     * @notice Override of the transfer function to add pause functionality
+     * @notice Transfers a specified number of tokens from the caller's address to the recipient.
+     * @dev Converts token amounts to shares for internal accounting while maintaining
+     * the appearance of token-based transfers to users.
+     * @param to The shielded address to which tokens will be transferred.
+     * @param amount The shielded number of tokens to transfer.
+     * @return A boolean value indicating whether the operation succeeded.
      */
-    function transfer(saddress to, suint256 amount) public override returns (bool) {
-        return super.transfer(to, amount);
+    function transfer(saddress to, suint256 amount) public virtual override whenNotPaused returns (bool) {
+        address owner = _msgSender();
+        
+        if (to == saddress(address(0))) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+
+        _beforeTokenTransfer(saddress(owner), to, amount);
+
+        suint256 shares = convertToShares(amount);
+        suint256 fromShares = _shares[saddress(owner)];
+
+        if (fromShares < shares) {
+            revert ERC20InsufficientBalance(owner, uint256(fromShares), uint256(shares));
+        }
+
+        unchecked {
+            _shares[saddress(owner)] = fromShares - shares;
+            // Overflow not possible: the sum of all shares is capped by totalShares
+            _shares[to] += shares;
+        }
+
+        emit Transfer(owner, address(to), uint256(amount));
+
+        _afterTokenTransfer(saddress(owner), to, amount);
+
+        return true;
     }
 
     /**

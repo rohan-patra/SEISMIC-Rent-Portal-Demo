@@ -227,43 +227,63 @@ contract USDYTest is Test {
         assertEq(token.balanceOf(saddress(user2)), transferAmount);
     }
 
+    /**
+     * @notice Test reward multiplier updates and their effect on token balances
+     * @dev This test verifies that:
+     * 1. Reward multiplier updates correctly increase token values
+     * 2. Transfers after yield updates use proper share calculations
+     * 3. Final balances reflect both transferred amounts and accumulated yield
+     *
+     * The test flow:
+     * 1. Start with initial balance in user1's account
+     * 2. Add 10% yield through reward multiplier
+     * 3. Transfer tokens from user1 to user2
+     * 4. Verify balances reflect both the transfer and yield
+     */
     function test_RewardMultiplierUpdate() public {
         uint256 increment = 0.1e18; // 10% increase
         uint256 initialBalance = INITIAL_MINT;
         
-        // Add yield
+        // Add yield by increasing reward multiplier by 10%
         vm.prank(oracle);
         vm.expectEmit(true, true, true, true);
         emit RewardMultiplierUpdated(BASE + increment);
         token.addRewardMultiplier(increment);
 
-        // After yield, initial balance is worth more tokens
+        // Calculate initial balance after yield
+        // When yield is added, the same number of shares are worth more tokens
         uint256 yieldAdjustedInitialBalance = (initialBalance * (BASE + increment)) / BASE;
         
-        // Transfer after yield increase
+        // Set up transfer amount and calculate shares
         uint256 transferAmount = 100e18;
         
-        // Calculate shares that will be transferred
+        // Calculate shares needed for transfer
+        // When transferring tokens with active yield:
+        // shares = tokens * (BASE / (BASE + yield))
         uint256 transferShares = (transferAmount * BASE) / (BASE + increment);
         
-        // Calculate expected final balances
+        // Calculate expected final balances for both users
+        // User1: Convert remaining shares to tokens using new yield rate
         uint256 expectedUser1Shares = initialBalance - transferShares;
         uint256 expectedUser1Balance = (expectedUser1Shares * (BASE + increment)) / BASE;
+        // User2: Convert received shares to tokens using new yield rate
         uint256 expectedUser2Balance = (transferShares * (BASE + increment)) / BASE;
         
+        // Perform transfer
         vm.prank(user1);
         token.transfer(saddress(user2), suint256(transferAmount));
 
-        // Check balances
+        // Verify final balances
         vm.prank(user1);
         uint256 user1Balance = token.balanceOf(saddress(user1));
         vm.prank(user2);
         uint256 user2Balance = token.balanceOf(saddress(user2));
         
+        // Assert balances match expected values
         assertEq(user1Balance, expectedUser1Balance, "User1 balance incorrect");
         assertEq(user2Balance, expectedUser2Balance, "User2 balance incorrect");
         
-        // Verify total supply increased by yield
+        // Verify total supply reflects yield increase
         assertEq(token.totalSupply(), yieldAdjustedInitialBalance, "Total supply incorrect");
     }
 

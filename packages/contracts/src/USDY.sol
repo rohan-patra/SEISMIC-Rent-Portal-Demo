@@ -228,36 +228,12 @@ contract USDY is SERC20 {
     }
 
     /**
-     * @notice Mints new tokens to a shielded address
-     * @param to The shielded address to mint to
-     * @param amount The amount to mint
-     */
-    function mintShielded(saddress to, suint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
-        if (to == saddress(address(0))) {
-            revert ERC20InvalidReceiver(address(0));
-        }
-        _update(saddress(address(0)), to, amount);
-    }
-
-    /**
      * @notice Burns tokens from an address
      * @param from The address to burn from
      * @param amount The amount to burn
      */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
         _burn(from, amount);
-    }
-
-    /**
-     * @notice Burns tokens from a shielded address
-     * @param from The shielded address to burn from
-     * @param amount The amount to burn
-     */
-    function burnShielded(saddress from, suint256 amount) external onlyRole(BURNER_ROLE) whenNotPaused {
-        if (from == saddress(address(0))) {
-            revert ERC20InvalidSender(address(0));
-        }
-        _update(from, saddress(address(0)), amount);
     }
 
     /**

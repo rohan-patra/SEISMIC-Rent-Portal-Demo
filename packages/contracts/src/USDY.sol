@@ -362,14 +362,17 @@ contract USDY is SERC20 {
     }
 
     /**
-     * @notice Returns the remaining number of tokens that `spender` will be allowed to spend
-     * on behalf of `owner`
-     * @param owner The address of the account owning tokens
-     * @param spender The address of the account able to transfer the tokens
-     * @return The number of remaining tokens allowed to be spent
+     * @notice This is the exact same implementation as the one in SERC20.sol
+     * @dev See {SIERC20-allowance}.
+     * Returns actual allowance if caller is either the owner or the spender,
+     * returns 0 otherwise to maintain privacy.
      */
     function allowance(saddress owner, saddress spender) public view override returns (uint256) {
-        return uint256(_allowances[owner][spender]);
+        saddress caller = saddress(_msgSender());
+        if (caller == owner || caller == spender) {
+            return uint256(_allowances[saddress(owner)][saddress(spender)]);
+        }
+        return 0;
     }
 
     /**

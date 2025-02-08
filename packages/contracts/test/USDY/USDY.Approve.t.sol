@@ -32,6 +32,7 @@ contract USDYApproveTest is Test {
 
         vm.startPrank(admin);
         token.grantRole(token.MINTER_ROLE(), minter);
+        token.grantRole(token.ORACLE_ROLE(), oracle);
         vm.stopPrank();
 
         // Initial mint for testing approvals

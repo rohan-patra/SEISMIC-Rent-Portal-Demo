@@ -128,36 +128,12 @@ contract USDYTest is Test {
         assertEq(token.totalSupply(), INITIAL_MINT);
     }
 
-    function test_UnshieldedMintAndBurn() public {
-        uint256 amount = 100e18;
-        
-        // Test unshielded minting
-        vm.prank(minter);
-        token.mintUnshielded(user1, amount);
-        
-        vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT + amount);
-        assertEq(token.totalSupply(), INITIAL_MINT + amount);
-        
-        // Test unshielded burning
-        vm.prank(burner);
-        token.burnUnshielded(user1, amount);
-        
-        vm.prank(user1);
-        assertEq(token.balanceOf(saddress(user1)), INITIAL_MINT);
-        assertEq(token.totalSupply(), INITIAL_MINT);
-    }
-
     function test_MintWithoutRole() public {
         uint256 amount = 100e18;
         
         vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), user1));
         vm.prank(user1);
         token.mint(saddress(user1), suint256(amount));
-
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.MINTER_ROLE(), user1));
-        vm.prank(user1);
-        token.mintUnshielded(user1, amount);
     }
 
     function test_BurnWithoutRole() public {
@@ -171,10 +147,6 @@ contract USDYTest is Test {
         vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), user1));
         vm.prank(user1);
         token.burn(saddress(user1), suint256(amount));
-
-        vm.expectRevert(abi.encodeWithSelector(USDY.MissingRole.selector, token.BURNER_ROLE(), user1));
-        vm.prank(user1);
-        token.burnUnshielded(user1, amount);
     }
 
     function test_MintWhenPaused() public {
@@ -188,10 +160,6 @@ contract USDYTest is Test {
         vm.expectRevert(USDY.TransferWhilePaused.selector);
         vm.prank(minter);
         token.mint(saddress(user1), suint256(amount));
-
-        vm.expectRevert(USDY.TransferWhilePaused.selector);
-        vm.prank(minter);
-        token.mintUnshielded(user1, amount);
     }
 
     function test_BurnWhenPaused() public {
@@ -209,10 +177,6 @@ contract USDYTest is Test {
         vm.expectRevert(USDY.TransferWhilePaused.selector);
         vm.prank(burner);
         token.burn(saddress(user1), suint256(amount));
-
-        vm.expectRevert(USDY.TransferWhilePaused.selector);
-        vm.prank(burner);
-        token.burnUnshielded(user1, amount);
     }
 
     function test_PausedTransfers() public {

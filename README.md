@@ -2,13 +2,60 @@
 
 ## Overview
 
-ERC-20 Compliant token on the Seismic network which enables tokens with private balances, transfers, and recipients.
+A full-stack dApp demonstrating shielded tokens on the Seismic network, featuring private balances, transfers, and recipients.
+The project includes:
 
-### Starter Project
+- smart contracts for
+  - SRC20 (a shielded ERC20 implementation)
+  - USDY (a shielded yield-bearing stablecoin)
+- a Next.js app with Rainbowkit & `seismic-react`
+  - a faucet for minting USDY
+  - a rent portal for managing and processing rent payments
 
-A good example to get you started with using `stype`. The app is centered around
-a walnut with a secret number inside.
+## Project Structure
 
-Every time you shake the walnut, this number increments. Every time you hit the
-walnut, the shell gets closer to cracking. You can only look at the number once
-the shell is cracked.
+```
+packages/
+├── contracts/        # Solidity smart contracts
+│   ├── src/
+│   │   ├── SRC20.sol # Base shielded ERC20 implementation
+│   │   └── USDY.sol  # Shielded yield-bearing stablecoin
+│   ├── script/       # Deployment scripts
+│   └── test/         # Contract test suites
+└── frontend/         # Next.js web application
+    ├── app/          # Application routes and components
+    └── components/   # Reusable UI components
+```
+
+## Features
+
+- **Shielded Tokens**: Private token balances and transfers using zero-knowledge proofs
+- **USDY**: Yield-bearing stablecoin with privacy features
+- **Rent Portal**: Web interface for managing and processing rent payments
+- **Modern UI**: Built with Next.js, TailwindCSS, and RainbowKit
+- **Privacy-First**: All token operations maintain user privacy through Seismic's ZK infrastructure
+
+## Getting Started
+
+### Setup
+
+1. Install dependencies:
+
+```bash
+cd packages/frontend && bun install
+cd ../contracts && forge install
+```
+
+2. Set up environment variables:
+
+```bash
+cp packages/frontend/.env.example packages/frontend/.env
+cp packages/contracts/.env.example packages/contracts/.env
+```
+
+3. Run the development environment:
+
+```bash
+# In packages/frontend
+bun dev
+```

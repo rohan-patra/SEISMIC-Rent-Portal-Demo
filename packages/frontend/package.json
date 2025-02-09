@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "cd ../contracts && sforge compile --silent --no-cache && cd ../frontend && next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "cd ../contracts && sforge compile --no-cache && cd ../frontend && next build",
+    "start": "cd ../contracts && sforge compile --no-cache && cd ../frontend && next start",
     "lint": "next lint",
     "format": "prettier --write . --cache --cache-strategy content",
     "typecheck": "tsc --noEmit --pretty --project tsconfig.json && echo '✔ TypeScript compilation passed'"

@@ -22,6 +22,7 @@ import {
 import { useShieldedWriteContract } from "seismic-react";
 import { USDYContract } from "@/lib/contracts";
 import { parseEther } from "viem";
+import { drip } from "./dripAction";
 
 const formSchema = z.object({
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address"),
@@ -61,10 +62,15 @@ export function FaucetForm() {
 
   const { isConnected } = useAccount();
 
+  // function onSubmit(values: FormSchema) {
   function onSubmit() {
     try {
       // use wagmi to call the mint function on the USDY contract
-      mintUSDY();
+      // mintUSDY();
+      drip(
+        form.getValues("address") as `0x${string}`,
+        form.getValues("amount"),
+      );
 
       if (isConfirmed) {
         toast.success("USDY tokens sent successfully!");

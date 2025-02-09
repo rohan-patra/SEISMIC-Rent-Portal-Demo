@@ -23,15 +23,12 @@ const queryClient = new QueryClient();
 
 export function WalletProviders({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = useTheme();
+  const theme = resolvedTheme === "dark" ? darkTheme() : lightTheme();
 
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={resolvedTheme === "light" ? lightTheme() : darkTheme()}
-        >
-          {children}
-        </RainbowKitProvider>
+        <RainbowKitProvider theme={theme}>{children}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

@@ -1,6 +1,6 @@
 import { defineChain } from "viem";
 
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL as string;
+const RPC_URL = "http://localhost:3000/api/rpc";
 const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL as string;
 
 export const seismicDevnet = defineChain({

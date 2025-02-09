@@ -17,10 +17,11 @@ import { z } from "zod";
 import {
   useAccount,
   useWaitForTransactionReceipt,
-  useWriteContract,
   type BaseError,
 } from "wagmi";
+import { useShieldedWriteContract } from "seismic-react";
 import { USDYContract } from "@/lib/contracts";
+import { parseEther } from "viem";
 
 const formSchema = z.object({
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address"),
@@ -38,24 +39,32 @@ export function FaucetForm() {
     },
   });
 
-  const { data: hash, error, isPending, writeContract } = useWriteContract();
+  const {
+    hash,
+    error,
+    isLoading,
+    writeContract: mintUSDY,
+  } = useShieldedWriteContract({
+    address: USDYContract.address,
+    abi: USDYContract.abi,
+    functionName: "mint",
+    args: [
+      form.getValues("address"),
+      parseEther(form.getValues("amount").toString()),
+    ],
+  });
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
-      hash,
+      hash: hash || undefined,
     });
 
   const { isConnected } = useAccount();
 
-  function onSubmit(values: FormSchema) {
+  function onSubmit() {
     try {
       // use wagmi to call the mint function on the USDY contract
-      writeContract({
-        address: USDYContract.address,
-        abi: USDYContract.abi,
-        functionName: "mint",
-        args: [values.address, values.amount],
-      });
+      mintUSDY();
 
       if (isConfirmed) {
         toast.success("USDY tokens sent successfully!");
@@ -110,12 +119,12 @@ export function FaucetForm() {
           className="w-full"
           disabled={
             form.formState.isSubmitting ||
-            isPending ||
+            isLoading ||
             !isConnected ||
             !form.formState.isValid
           }
         >
-          {form.formState.isSubmitting || isPending
+          {form.formState.isSubmitting || isLoading
             ? "Sending..."
             : "Request USDY"}
         </Button>

@@ -11,6 +11,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { seismicDevnet } from "@/lib/chain";
+import { ShieldedWalletProvider } from "seismic-react";
 
 const config = getDefaultConfig({
   appName: "Seismic Rent App",
@@ -28,7 +29,11 @@ export function WalletProviders({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={theme}>{children}</RainbowKitProvider>
+        <RainbowKitProvider theme={theme}>
+          <ShieldedWalletProvider config={config}>
+            {children}
+          </ShieldedWalletProvider>
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

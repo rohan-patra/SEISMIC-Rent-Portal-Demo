@@ -24,10 +24,12 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
+    "seismic-react": "^1.0.4",
+    "seismic-viem": "^1.0.13",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
-    "viem": "^2.22.23",
+    "viem": "^2.22.21",
     "wagmi": "^2.14.11",
     "zod": "^3.24.1"
   },
